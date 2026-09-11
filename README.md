@@ -1,15 +1,22 @@
 # Entrümpelungsrechner
 
-Statischer Preisrechner für **Just & Luis Entrümpelung**, Braunschweig-Stöckheim.
+**Internes** Kalkulationswerkzeug für **Just & Luis Entrümpelung**,
+Braunschweig-Stöckheim. Gedacht für Just und Luis, nicht für Kunden.
 
-Kunden geben Wohnfläche, Etage, Vermüllungsgrad und Sonderposten ein und
-bekommen sofort eine Preisspanne. Auf Knopfdruck entsteht daraus eine
-PDF-Zusammenfassung.
+Wohnfläche, Etage, Vermüllungsgrad und Sonderposten eintippen – die Seite zeigt
+die Spanne, die man dem Kunden nennt, **und** den exakten internen Richtwert.
+Auf Knopfdruck entsteht daraus eine PDF-Zusammenfassung für den Kunden.
 
 **Kein Backend, keine Datenbank, kein Build-Prozess.** Reines
 HTML/CSS/JavaScript – läuft direkt über GitHub Pages. Alle Berechnungen und
-die PDF-Erzeugung laufen im Browser des Kunden; es werden keine Eingaben
-gespeichert oder an einen Server gesendet.
+die PDF-Erzeugung laufen im Browser; es werden keine Eingaben gespeichert oder
+an einen Server gesendet.
+
+> **Achtung, Sichtbarkeit:** Bei einem öffentlichen Repository ist die
+> GitHub-Pages-Seite für jeden im Internet erreichbar, der die Adresse kennt –
+> es gibt kein Login. Ein `noindex`-Hinweis hält Suchmaschinen fern, aber das
+> ist kein Schutz. Wer die Kalkulationsgrundlage nicht öffentlich haben will:
+> siehe „Seite nicht öffentlich betreiben" unten.
 
 ---
 
@@ -69,8 +76,10 @@ const PREISE = {
 };
 ```
 
-Die Telefonnummer steht an drei Stellen: in `index.html` (Anruf-Leiste und
-Fußzeile) und in `js/pdf.js` im Block `FIRMA` (für die PDF-Fußzeile).
+Die Telefonnummer steht nur noch in `js/pdf.js` im Block `FIRMA` – sie
+erscheint in der PDF-Fußzeile, also in dem Dokument, das der Kunde bekommt.
+Auf der Seite selbst gibt es keine Telefonnummer und keine Anruf-Leiste, weil
+das Werkzeug intern ist.
 
 ### So wird gerechnet
 
@@ -82,7 +91,11 @@ Fußzeile) und in `js/pdf.js` im Block `FIRMA` (für die PDF-Fußzeile).
 5. Angezeigte Spanne: Ergebnis `±20 %`, auf 10 € gerundet
 
 Beispiel: 60 m², 3. Etage ohne Aufzug, mittel, Keller, Sperrmüll + Elektroschrott
-→ Richtwert 720,65 € → Anzeige **„ca. 580–860 € VB"**.
+→ interner Richtwert 720,65 € → Kundenspanne **„ca. 580–860 € VB"**.
+
+Auf dem Bildschirm stehen beide Zahlen: die Kundenspanne in Grün, der interne
+Richtwert darunter in Braun. **Im PDF steht nur die Kundenspanne**, der
+Richtwert nicht.
 
 > Hinweis: *Anzahl Zimmer* geht bewusst **nicht** in den Preis ein (die
 > Wohnfläche deckt das schon ab). Das Feld steht nur zur Information im PDF.
@@ -105,9 +118,21 @@ Zwei Dinge, die man dazu wissen sollte:
   steht im PDF `EUR` und ein normaler Bindestrich. Die Funktion `pdfSicher()`
   in `js/pdf.js` sorgt dafür – wer dort Texte ergänzt, sollte sie nicht umgehen.
 
-## Noch offen
+## Seite nicht öffentlich betreiben
 
-- **Impressum und Datenschutzerklärung fehlen.** Für eine geschäftlich genutzte
-  Seite in Deutschland sind beide Pflicht (§ 5 DDG, Art. 13 DSGVO). Die Daten
-  dafür müssen von Just & Luis kommen; danach als `impressum.html` und
-  `datenschutz.html` ergänzen und in der Fußzeile verlinken.
+Als internes Werkzeug muss die Seite gar nicht im Netz stehen. Drei
+Möglichkeiten, von einfach nach aufwendig:
+
+1. **Gar nicht veröffentlichen.** Repository klonen oder als ZIP herunterladen,
+   `index.html` doppelklicken. Funktioniert vollständig offline – außer der
+   PDF-Erzeugung, die jsPDF vom CDN lädt (dann jsPDF lokal ablegen, siehe oben).
+   GitHub Pages in den Einstellungen auf *None* stellen.
+2. **Auf dem Handy speichern.** Seite im Browser öffnen und „Zum Startbildschirm
+   hinzufügen". Sieht aus wie eine App, braucht danach kein Suchen mehr.
+3. **Repository auf privat stellen.** GitHub Pages für private Repositories
+   setzt allerdings einen bezahlten Plan voraus (GitHub Pro oder Team) –
+   sonst wird die Seite nicht mehr ausgeliefert.
+
+Solange die Seite öffentlich läuft: Sie enthält keine Kundendaten (es wird
+nichts gespeichert), aber die **komplette Kalkulationsgrundlage** – Stundenlogik,
+Zuschläge, Margenpuffer. Wer das nicht offenlegen will, nimmt Variante 1 oder 3.

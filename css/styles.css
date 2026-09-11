@@ -21,7 +21,6 @@
   /* Maße */
   --radius: 14px;
   --klickflaeche: 56px;   /* Mindesthöhe für alle bedienbaren Elemente */
-  --leiste-hoehe: 84px;   /* Höhe der fixen Anruf-Leiste */
 }
 
 * { box-sizing: border-box; }
@@ -34,8 +33,7 @@ body {
   font: 19px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color: var(--text);
   background: var(--sand);
-  /* Platz für die fixe Anruf-Leiste am unteren Rand freihalten */
-  padding-bottom: calc(var(--leiste-hoehe) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px));
 }
 
 .inhalt {
@@ -257,7 +255,24 @@ input[aria-invalid="true"] { border-color: var(--rot); }
   font-weight: 800;
   color: var(--gruen-dunkel);
 }
-.preis-hinweis { margin: 0; font-size: 1.02rem; color: var(--text-leise); }
+.preis-label {
+  margin: 14px 0 2px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-leise);
+}
+.preis-label:first-of-type { margin-top: 0; }
+
+/* Interner Richtwert — bewusst in Erdton statt Grün, damit die Zahl,
+   die der Kunde NICHT sehen soll, sich klar von der Kundenspanne abhebt */
+.richtwert {
+  margin: 0;
+  font-size: clamp(1.4rem, 5.6vw, 1.75rem);
+  font-weight: 800;
+  color: var(--erde);
+}
 .pdf-hinweis {
   margin: 10px 0 0;
   font-size: 0.95rem;
@@ -303,24 +318,6 @@ input[aria-invalid="true"] { border-color: var(--rot); }
   font-size: 1rem;
 }
 
-/* --- Über uns ------------------------------------------------------------- */
-.ueber-uns { background: var(--erde-hell); border-color: #e3d8c5; }
-.ueber-uns p { margin-top: 0; }
-.haken-liste { margin: 0; padding: 0; list-style: none; }
-.haken-liste li {
-  position: relative;
-  padding: 7px 0 7px 34px;
-}
-.haken-liste li::before {
-  content: "✓";
-  position: absolute;
-  left: 0;
-  top: 7px;
-  color: var(--gruen-dunkel);
-  font-size: 1.25rem;
-  font-weight: 800;
-}
-
 /* --- Fußzeile ------------------------------------------------------------- */
 .fuss {
   padding: 8px 0 28px;
@@ -329,37 +326,6 @@ input[aria-invalid="true"] { border-color: var(--rot); }
 }
 .fuss a { color: var(--gruen-dunkel); font-weight: 700; }
 .fuss-klein { font-size: 0.9rem; }
-
-/* --- Fixe Anruf-Leiste ---------------------------------------------------- */
-.anruf-leiste {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 50;
-  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
-  background: rgba(251, 248, 242, 0.97);
-  border-top: 1px solid var(--linie);
-  box-shadow: 0 -3px 14px rgba(0, 0, 0, 0.09);
-}
-.anruf-knopf {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  max-width: 612px;
-  margin: 0 auto;
-  min-height: 62px;
-  padding: 10px 18px;
-  border-radius: 12px;
-  background: var(--gruen-dunkel);
-  color: var(--weiss);
-  text-decoration: none;
-}
-.anruf-icon { font-size: 1.6rem; }
-.anruf-text { display: flex; flex-direction: column; line-height: 1.2; }
-.anruf-oben { font-size: 0.92rem; opacity: 0.9; }
-.anruf-unten { font-size: 1.35rem; font-weight: 800; letter-spacing: 0.02em; }
 
 /* --- Etwas mehr Luft auf größeren Bildschirmen ---------------------------- */
 @media (min-width: 700px) {
@@ -371,8 +337,8 @@ input[aria-invalid="true"] { border-color: var(--rot); }
 
 /* --- Druck: Anruf-Leiste und Formular ausblenden -------------------------- */
 @media print {
-  .anruf-leiste, .knopf, .kopf { display: none !important; }
-  body { padding-bottom: 0; background: #fff; }
+  .knopf, .kopf { display: none !important; }
+  body { background: #fff; }
   .karte { border: none; margin: 0; padding: 0; }
 }
 

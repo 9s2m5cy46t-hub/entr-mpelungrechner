@@ -9,6 +9,7 @@
   const formular = document.getElementById('rechner-formular');
   const ergebnisBereich = document.getElementById('ergebnis');
   const preisAnzeige = document.getElementById('preis-anzeige');
+  const richtwertAnzeige = document.getElementById('richtwert-anzeige');
   const aufschluesselungListe = document.getElementById('aufschluesselung');
   const pdfKnopf = document.getElementById('pdf-knopf');
   const pdfFehler = document.getElementById('pdf-fehler');
@@ -156,6 +157,8 @@
     letztesErgebnis = berechnePreis(eingaben);
 
     preisAnzeige.textContent = letztesErgebnis.spanneText;
+    // exakter Kalkulationspreis — nur intern, steht nicht im PDF
+    richtwertAnzeige.textContent = formatEuroCent(letztesErgebnis.kalkulationspreis);
     zeigeAufschluesselung(letztesErgebnis);
 
     pdfFehler.hidden = true;
