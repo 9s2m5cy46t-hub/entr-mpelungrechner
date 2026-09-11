@@ -7,18 +7,54 @@
   'use strict';
 
   const formular = document.getElementById('rechner-formular');
+  const artAuswahl = document.getElementById('auftragsart');
+  const artHinweis = document.getElementById('art-hinweis');
   const ergebnisBereich = document.getElementById('ergebnis');
+  const ergebnisArt = document.getElementById('ergebnis-art');
   const preisAnzeige = document.getElementById('preis-anzeige');
   const richtwertAnzeige = document.getElementById('richtwert-anzeige');
+  const planStunden = document.getElementById('plan-stunden');
+  const planDauer = document.getElementById('plan-dauer');
+  const planDauerLabel = document.getElementById('plan-dauer-label');
+  const planSlot = document.getElementById('plan-slot');
   const aufschluesselungListe = document.getElementById('aufschluesselung');
   const pdfKnopf = document.getElementById('pdf-knopf');
   const pdfFehler = document.getElementById('pdf-fehler');
   const neuKnopf = document.getElementById('neu-knopf');
 
-  // Letztes Ergebnis zwischenspeichern, damit der PDF-Knopf es verwenden kann.
+  // Letzte Kalkulation, damit der PDF-Knopf sie verwenden kann.
   // Bleibt nur im Arbeitsspeicher — nichts wird gespeichert oder gesendet.
   let letzteEingaben = null;
   let letztesErgebnis = null;
+
+  // Kurzer Hinweis unter dem Dropdown, damit klar ist, wie gerechnet wird
+  const ART_HINWEISE = {
+    entruempelung: 'Preis nach Wohnfläche und Vermüllungsgrad.',
+    abbruch: 'Preis nach geschätzter Arbeitszeit und Entsorgung.',
+    bau: 'Preis nach geschätzter Arbeitszeit plus Material.',
+    sonstiges: 'Preis nach geschätzter Arbeitszeit.',
+  };
+
+  /* ---------------------------------------------------------------------------
+   * Felder der gewählten Auftragsart einblenden, die anderen ausblenden
+   * ------------------------------------------------------------------------ */
+  function aktuellesModell() {
+    const art = artAuswahl.value;
+    return (AUFTRAGSARTEN[art] || AUFTRAGSARTEN.entruempelung).modell;
+  }
+
+  function zeigePassendeFelder() {
+    const modell = aktuellesModell();
+    document.querySelectorAll('[data-modell]').forEach(function (gruppe) {
+      gruppe.hidden = gruppe.dataset.modell !== modell;
+    });
+    artHinweis.textContent = ART_HINWEISE[artAuswahl.value] || '';
+    // Fehlermeldungen ausgeblendeter Felder zurücksetzen
+    ['wohnflaeche', 'zimmer', 'dauer'].forEach(function (name) {
+      const feld = document.getElementById(name);
+      if (feld && feld.closest('[data-modell]').hidden) zeigeFehler(name, '');
+    });
+  }
 
   /* ---------------------------------------------------------------------------
    * Formular auslesen
@@ -26,13 +62,23 @@
   function leseFormular() {
     const daten = new FormData(formular);
     return {
+      auftragsart: daten.get('auftragsart'),
+      beschreibung: (daten.get('beschreibung') || '').trim(),
+      // Entrümpelung
       wohnflaeche: Number(daten.get('wohnflaeche')),
       zimmer: Number(daten.get('zimmer')),
-      etage: daten.get('etage'),
-      aufzug: daten.get('aufzug') === 'ja',
       vermuellungsgrad: daten.get('vermuellungsgrad'),
       kellerabteil: daten.get('kellerabteil') === 'ja',
-      gegenstaende: daten.getAll('gegenstaende'),
+      // Stundenauftrag
+      dauer: Number(daten.get('dauer')),
+      erschwernis: daten.get('erschwernis'),
+      material: Number(daten.get('material')) || 0,
+      // alle Auftragsarten
+      personen: Number(daten.get('personen')) || 1,
+      etage: daten.get('etage'),
+      aufzug: daten.get('aufzug') === 'ja',
+      entsorgung: daten.getAll('entsorgung'),
+      // Kundendaten (nur fürs PDF)
       kundenname: (daten.get('kundenname') || '').trim(),
       adresse: (daten.get('adresse') || '').trim(),
       telefon: (daten.get('telefon') || '').trim(),
@@ -40,8 +86,8 @@
   }
 
   /* ---------------------------------------------------------------------------
-   * Prüfung der Pflichtfelder (nur Wohnfläche und Zimmer sind Pflicht —
-   * die Kontaktdaten braucht nur das PDF und dürfen leer bleiben)
+   * Prüfung — je Auftragsart sind andere Felder Pflicht.
+   * Kundendaten sind nie Pflicht, die braucht nur das PDF.
    * ------------------------------------------------------------------------ */
   function zeigeFehler(feldName, text) {
     const meldung = document.querySelector('[data-fehler-fuer="' + feldName + '"]');
@@ -51,32 +97,34 @@
       meldung.hidden = !text;
     }
     if (feld) {
-      if (text) {
-        feld.setAttribute('aria-invalid', 'true');
-      } else {
-        feld.removeAttribute('aria-invalid');
-      }
+      if (text) feld.setAttribute('aria-invalid', 'true');
+      else feld.removeAttribute('aria-invalid');
     }
   }
 
   function pruefe(eingaben) {
     let ersterFehler = null;
 
-    if (!eingaben.wohnflaeche || eingaben.wohnflaeche < 1) {
-      zeigeFehler('wohnflaeche', 'Bitte die Wohnfläche in m² eintragen.');
-      ersterFehler = ersterFehler || 'wohnflaeche';
-    } else if (eingaben.wohnflaeche > 2000) {
-      zeigeFehler('wohnflaeche', 'Bitte rufen Sie uns an – das rechnen wir persönlich.');
-      ersterFehler = ersterFehler || 'wohnflaeche';
-    } else {
-      zeigeFehler('wohnflaeche', '');
+    function pruefeFeld(name, bedingung, text) {
+      if (bedingung) {
+        zeigeFehler(name, text);
+        ersterFehler = ersterFehler || name;
+      } else {
+        zeigeFehler(name, '');
+      }
     }
 
-    if (!eingaben.zimmer || eingaben.zimmer < 1) {
-      zeigeFehler('zimmer', 'Bitte die Anzahl der Zimmer eintragen.');
-      ersterFehler = ersterFehler || 'zimmer';
+    if (aktuellesModell() === 'flaeche') {
+      pruefeFeld('wohnflaeche',
+        !eingaben.wohnflaeche || eingaben.wohnflaeche < 1,
+        'Bitte die Wohnfläche in m² eintragen.');
+      pruefeFeld('zimmer',
+        !eingaben.zimmer || eingaben.zimmer < 1,
+        'Bitte die Anzahl der Zimmer eintragen.');
     } else {
-      zeigeFehler('zimmer', '');
+      pruefeFeld('dauer',
+        !eingaben.dauer || eingaben.dauer <= 0,
+        'Bitte schätzen, wie lange die Arbeit dauert.');
     }
 
     if (ersterFehler) {
@@ -91,57 +139,29 @@
   }
 
   /* ---------------------------------------------------------------------------
-   * Aufschlüsselung als Liste rendern
+   * Aufschlüsselung rendern
    * ------------------------------------------------------------------------ */
-  function zeile(bezeichnung, betragText, istSumme) {
+  function zeile(bezeichnung, wert, istSumme) {
     const li = document.createElement('li');
     if (istSumme) li.className = 'summe';
     const links = document.createElement('span');
     links.textContent = bezeichnung;
     const rechts = document.createElement('span');
-    rechts.textContent = betragText;
+    rechts.textContent = wert;
     li.append(links, rechts);
     return li;
   }
 
   function zeigeAufschluesselung(ergebnis) {
-    const a = ergebnis.aufschluesselung;
     aufschluesselungListe.replaceChildren();
-
-    aufschluesselungListe.append(zeile('Grundpauschale', formatEuroCent(a.grundpauschale)));
-    aufschluesselungListe.append(zeile(
-      'Wohnfläche (' + formatZahl(letzteEingaben.wohnflaeche) + ' m² × ' + formatEuroCent(PREISE.proQuadratmeter) + ')',
-      formatEuroCent(a.flaechenpreis)
-    ));
-
-    if (a.vermuellungsZuschlag > 0) {
-      aufschluesselungListe.append(zeile(
-        'Aufwand ' + LABELS.vermuellung[a.vermuellungsgrad] + ' (×' + String(a.vermuellungsMultiplikator).replace('.', ',') + ')',
-        '+ ' + formatEuroCent(a.vermuellungsZuschlag)
-      ));
-    }
-
-    if (a.kellerZuschlag > 0) {
-      aufschluesselungListe.append(zeile('Kellerabteil', '+ ' + formatEuroCent(a.kellerZuschlag)));
-    }
-
-    a.gegenstaendePositionen.forEach(function (pos) {
-      aufschluesselungListe.append(zeile(pos.label, '+ ' + formatEuroCent(pos.betrag)));
+    ergebnis.positionen.forEach(function (pos) {
+      aufschluesselungListe.append(zeile(pos.label, formatEuroCent(pos.betrag)));
     });
-
-    if (a.etagenZuschlag > 0) {
-      aufschluesselungListe.append(zeile(
-        'Kein Aufzug, ' + a.etagenUeberEG + '. Etage (+' + a.etagenAufschlagProzent + ' %)',
-        '+ ' + formatEuroCent(a.etagenZuschlag)
-      ));
-    }
-
-    aufschluesselungListe.append(zeile('Kalkulierter Richtwert', formatEuroCent(ergebnis.kalkulationspreis), true));
-    aufschluesselungListe.append(zeile(
-      'Angezeigte Spanne (±20 %)',
-      formatZahl(ergebnis.spanneVon) + '–' + formatEuro(ergebnis.spanneBis),
-      true
-    ));
+    aufschluesselungListe.append(
+      zeile('Interner Richtwert', formatEuroCent(ergebnis.kalkulationspreis), true));
+    aufschluesselungListe.append(
+      zeile('Kundenspanne (±20 %)',
+        formatZahl(ergebnis.spanneVon) + '–' + formatEuro(ergebnis.spanneBis), true));
   }
 
   /* ---------------------------------------------------------------------------
@@ -156,9 +176,16 @@
     letzteEingaben = eingaben;
     letztesErgebnis = berechnePreis(eingaben);
 
+    ergebnisArt.textContent = letztesErgebnis.auftragsartLabel;
     preisAnzeige.textContent = letztesErgebnis.spanneText;
     // exakter Kalkulationspreis — nur intern, steht nicht im PDF
     richtwertAnzeige.textContent = formatEuroCent(letztesErgebnis.kalkulationspreis);
+
+    planStunden.textContent = formatStunden(letztesErgebnis.personenstunden);
+    planDauerLabel.textContent = 'Dauer vor Ort (' + letztesErgebnis.personen + ' Pers.)';
+    planDauer.textContent = formatStunden(letztesErgebnis.dauerVorOrt);
+    planSlot.textContent = letztesErgebnis.zeitslotText;
+
     zeigeAufschluesselung(letztesErgebnis);
 
     pdfFehler.hidden = true;
@@ -167,8 +194,17 @@
   });
 
   /* ---------------------------------------------------------------------------
-   * Ergebnis verstecken, sobald jemand eine Eingabe ändert
-   * (sonst steht oben eine Preisspanne, die nicht mehr zu den Feldern passt)
+   * Auftragsart wechseln
+   * ------------------------------------------------------------------------ */
+  artAuswahl.addEventListener('change', function () {
+    zeigePassendeFelder();
+    ergebnisBereich.hidden = true;
+    letztesErgebnis = null;
+  });
+
+  /* ---------------------------------------------------------------------------
+   * Ergebnis verstecken, sobald eine Eingabe geändert wird
+   * (sonst steht dort eine Zahl, die nicht mehr zu den Feldern passt)
    * ------------------------------------------------------------------------ */
   formular.addEventListener('input', function () {
     if (!ergebnisBereich.hidden) {
@@ -187,23 +223,26 @@
       erstellePDF(letzteEingaben, letztesErgebnis);
     } catch (fehler) {
       pdfFehler.textContent =
-        'Das PDF konnte nicht erstellt werden. Bitte prüfen Sie Ihre Internetverbindung ' +
-        'und laden die Seite neu – oder drucken Sie die Seite über das Browser-Menü.';
+        'Das PDF konnte nicht erstellt werden. Bitte Internetverbindung prüfen ' +
+        'und die Seite neu laden – oder die Seite über das Browser-Menü drucken.';
       pdfFehler.hidden = false;
       console.error(fehler);
     }
   });
 
   /* ---------------------------------------------------------------------------
-   * Neu berechnen
+   * Nächste Kalkulation
    * ------------------------------------------------------------------------ */
   neuKnopf.addEventListener('click', function () {
     ergebnisBereich.hidden = true;
     letztesErgebnis = null;
     formular.reset();
-    zeigeFehler('wohnflaeche', '');
-    zeigeFehler('zimmer', '');
+    ['wohnflaeche', 'zimmer', 'dauer'].forEach(function (n) { zeigeFehler(n, ''); });
+    zeigePassendeFelder();
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    document.getElementById('wohnflaeche').focus();
+    artAuswahl.focus();
   });
+
+  // Startzustand herstellen
+  zeigePassendeFelder();
 })();

@@ -32,15 +32,34 @@ const SEITE = {
  * PDF geschrieben wird, durch diese Funktion.
  * -------------------------------------------------------------------------- */
 function pdfSicher(text) {
-  return String(text)
-    .replace(/\u20ac/g, 'EUR')      // Euro-Zeichen
-    .replace(/[\u2013\u2014]/g, '-')  // Gedankenstrich / Geviertstrich
+  let ergebnis = String(text)
+    .replace(/\u20ac/g, 'EUR')        // Euro-Zeichen
+    .replace(/[\u2013\u2014]/g, '-')    // Gedankenstrich / Geviertstrich
+    .replace(/\u2248/g, '~')           // ungefähr-Zeichen
     .replace(/[\u2018\u2019\u201a]/g, "'")
     .replace(/[\u201c\u201d\u201e]/g, '"')
     .replace(/\u2026/g, '...')
-    .replace(/[\u2022\u00b7]/g, '\u00b7')
-    .replace(/\u00a0/g, ' ');        // geschütztes Leerzeichen
+    .replace(/[\u2022]/g, '\u00b7')
+    .replace(/\u00a0/g, ' ');          // geschütztes Leerzeichen
+
+  // Häufige Buchstaben aus Nachbarsprachen umschreiben, statt sie zu
+  // verlieren — bei Kundennamen ist "Michal" deutlich besser als "Micha".
+  const umschrift = {
+    'ł':'l','Ł':'L','ś':'s','Ś':'S','ż':'z','Ż':'Z','ź':'z','Ź':'Z',
+    'ą':'a','Ą':'A','ę':'e','Ę':'E','ć':'c','Ć':'C','ń':'n','Ń':'N',
+    'č':'c','Č':'C','š':'s','Š':'S','ř':'r','ě':'e','ů':'u','ő':'o','ű':'u',
+    'ğ':'g','Ğ':'G','ş':'s','Ş':'S','ı':'i','İ':'I',
+  };
+  ergebnis = ergebnis.replace(/[^\u0000-\u00ff]/g, function (zeichen) {
+    if (umschrift[zeichen]) return umschrift[zeichen];
+    // Alles Übrige würde von jsPDF lautlos verschluckt. In der Konsole
+    // meldet es sich, damit die Lücke auffällt und hier ergänzt werden kann.
+    console.warn('pdfSicher: Zeichen nicht darstellbar und entfernt:', zeichen);
+    return '';
+  });
+  return ergebnis;
 }
+
 
 /**
  * Erzeugt das PDF und startet den Download.
@@ -123,7 +142,7 @@ function erstellePDF(eingaben, ergebnis) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
   doc.setTextColor(36, 33, 29);
-  doc.text(pdfSicher('Kostenschätzung Entrümpelung'), links, y);
+  doc.text(pdfSicher('Kostenschätzung ' + ergebnis.auftragsartLabel), links, y);
   y += 8;
 
   const jetzt = new Date();
@@ -142,36 +161,63 @@ function erstellePDF(eingaben, ergebnis) {
     ueberschrift('Kundendaten');
     trennlinie();
     if (eingaben.kundenname) zeile('Name', eingaben.kundenname);
-    if (eingaben.adresse) zeile('Adresse', eingaben.adresse);
+    if (eingaben.adresse) zeile('Adresse / Baustelle', eingaben.adresse);
     if (eingaben.telefon) zeile('Telefon', eingaben.telefon);
     y += 5;
   }
 
-  /* --- Angaben zum Objekt -------------------------------------------------- */
-  ueberschrift('Angaben zum Objekt');
+  /* --- Was ist zu tun ------------------------------------------------------ */
+  if (eingaben.beschreibung) {
+    ueberschrift('Leistung');
+    trennlinie();
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.setTextColor(36, 33, 29);
+    const beschreibungsZeilen = doc.splitTextToSize(pdfSicher(eingaben.beschreibung), rechts - links);
+    seitenumbruchPruefen(beschreibungsZeilen.length * 5.5);
+    doc.text(beschreibungsZeilen, links, y);
+    y += beschreibungsZeilen.length * 5.5 + 7;
+  }
+
+  /* --- Angaben zum Auftrag ------------------------------------------------- */
+  ueberschrift('Angaben zum Auftrag');
   trennlinie();
-  zeile('Wohnfläche', formatZahl(eingaben.wohnflaeche) + ' m²');
-  zeile('Anzahl Zimmer', formatZahl(eingaben.zimmer));
+  zeile('Art des Auftrags', ergebnis.auftragsartLabel);
+
+  if (ergebnis.modell === 'flaeche') {
+    // Entrümpelung
+    zeile('Wohnfläche', formatZahl(eingaben.wohnflaeche) + ' m²');
+    if (eingaben.zimmer) zeile('Anzahl Zimmer', formatZahl(eingaben.zimmer));
+    zeile('Vermüllungsgrad', LABELS.vermuellung[eingaben.vermuellungsgrad]);
+    zeile('Kellerabteil zusätzlich', eingaben.kellerabteil ? 'Ja' : 'Nein');
+  } else {
+    // Abbruch, Bau, Sonstiges
+    zeile('Schwierigkeit', LABELS.erschwernis[eingaben.erschwernis]);
+    if (eingaben.material > 0) zeile('Material (im Preis enthalten)', 'Ja');
+  }
+
   zeile('Etage', LABELS.etage[eingaben.etage] || String(eingaben.etage));
   zeile('Aufzug vorhanden', eingaben.aufzug ? 'Ja' : 'Nein');
-  zeile('Vermüllungsgrad', LABELS.vermuellung[eingaben.vermuellungsgrad]);
-  zeile('Kellerabteil zusätzlich', eingaben.kellerabteil ? 'Ja' : 'Nein');
 
-  const gegenstaendeText = eingaben.gegenstaende.length
-    ? eingaben.gegenstaende.map(function (k) { return LABELS.gegenstaende[k]; })
-    : ['Keine Angabe'];
+  // Voraussichtliche Dauer — hilft dem Kunden bei der Terminplanung.
+  // Personenstunden und interner Richtwert stehen hier bewusst NICHT.
+  zeile('Voraussichtliche Dauer vor Ort', formatZeitslot(ergebnis.zeitslot));
 
-  // Besondere Gegenstände untereinander auflisten, damit nichts abgeschnitten wird
-  seitenumbruchPruefen(8 + gegenstaendeText.length * 6);
+  /* --- Entsorgung untereinander auflisten ---------------------------------- */
+  const entsorgungText = eingaben.entsorgung.length
+    ? eingaben.entsorgung.map(function (k) { return LABELS.entsorgung[k]; })
+    : ['Keine'];
+
+  seitenumbruchPruefen(8 + entsorgungText.length * 6);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
   doc.setTextColor(36, 33, 29);
-  doc.text(pdfSicher('Besondere Gegenstände'), links, y);
-  gegenstaendeText.forEach(function (text, index) {
+  doc.text(pdfSicher('Entsorgung'), links, y);
+  entsorgungText.forEach(function (text, index) {
     doc.setFont('helvetica', 'bold');
     doc.text(pdfSicher(text), rechts, y + index * 6, { align: 'right' });
   });
-  y += gegenstaendeText.length * 6 + 6;
+  y += entsorgungText.length * 6 + 6;
 
   /* --- Preisspanne --------------------------------------------------------- */
   ueberschrift('Unverbindliche Kostenschätzung');
@@ -227,5 +273,7 @@ function erstellePDF(eingaben, ergebnis) {
         .replace(/[^a-zA-Z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '')
     : '';
-  doc.save('Entruempelung-Kostenschaetzung-' + datumDatei + nameTeil + '.pdf');
+  // Auftragsart im Dateinamen, damit mehrere PDFs unterscheidbar bleiben
+  const artTeil = ergebnis.auftragsart.charAt(0).toUpperCase() + ergebnis.auftragsart.slice(1);
+  doc.save('Kostenschaetzung-' + artTeil + '-' + datumDatei + nameTeil + '.pdf');
 }

@@ -114,6 +114,7 @@ label, .label-block {
 input[type="number"],
 input[type="text"],
 input[type="tel"],
+textarea,
 select {
   width: 100%;
   min-height: var(--klickflaeche);
@@ -124,6 +125,11 @@ select {
   font-size: 1.15rem;
   font-family: inherit;
   color: var(--text);
+}
+textarea {
+  min-height: 96px;
+  line-height: 1.45;
+  resize: vertical;
 }
 select {
   /* eigener Pfeil, damit die Auswahl auf allen Geräten gleich aussieht */
@@ -255,6 +261,41 @@ input[aria-invalid="true"] { border-color: var(--rot); }
   font-weight: 800;
   color: var(--gruen-dunkel);
 }
+.ergebnis-art {
+  display: inline-block;
+  margin: 0 0 16px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--gruen-dunkel);
+  color: var(--weiss);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+/* Zeitplanung — die Zahlen, mit denen der Termin in den Kalender kommt */
+.plan-liste {
+  margin: 20px 0 0;
+  padding: 14px 16px;
+  list-style: none;
+  border-radius: 10px;
+  background: var(--weiss);
+  border: 1px solid var(--linie);
+  font-size: 1rem;
+}
+.plan-liste li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+}
+.plan-liste li + li { border-top: 1px solid var(--linie); }
+.plan-liste li > span:first-child { min-width: 0; }
+.plan-liste li > span:last-child {
+  font-weight: 800;
+  text-align: right;
+  color: var(--gruen-dunkel);
+}
+
 .preis-label {
   margin: 14px 0 2px;
   font-size: 0.92rem;

@@ -3,21 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Entrümpelungsrechner – internes Kalkulationswerkzeug</title>
-<meta name="description" content="Internes Kalkulationswerkzeug für Entrümpelungsaufträge.">
+<title>Auftragsrechner – internes Kalkulationswerkzeug</title>
+<meta name="description" content="Internes Kalkulationswerkzeug für Bau- und Entrümpelungsaufträge.">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#2f6b3c">
 <link rel="stylesheet" href="css/styles.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
 </head>
 <body>
 
 <header class="kopf">
   <div class="inhalt">
     <p class="kopf-firma">Intern · Just &amp; Luis</p>
-    <h1>Entrümpelungs&shy;rechner</h1>
+    <h1>Auftrags&shy;rechner</h1>
     <p class="kopf-text">
-      Auftrag kalkulieren und als PDF für den Kunden zusammenfassen.
+      Auftrag kalkulieren, Zeit planen und als PDF für den Kunden
+      zusammenfassen.
     </p>
   </div>
 </header>
@@ -27,28 +28,168 @@
   <form id="rechner-formular" novalidate>
 
     <!-- ---------------------------------------------------------------
-         1. Objekt
+         1. Was ist zu tun
          --------------------------------------------------------------- -->
     <section class="karte">
-      <h2><span class="schritt">1</span> Das Objekt</h2>
+      <h2><span class="schritt">1</span> Der Auftrag</h2>
 
       <div class="feld">
-        <label for="wohnflaeche">Wohnfläche in m²</label>
-        <p class="hinweis">Schätzung genügt – z. B. 65</p>
-        <input type="number" id="wohnflaeche" name="wohnflaeche"
-               inputmode="numeric" min="1" max="2000" step="1"
-               placeholder="z. B. 65" required>
-        <p class="fehler" data-fehler-fuer="wohnflaeche" hidden></p>
+        <label for="auftragsart">Art des Auftrags</label>
+        <select id="auftragsart" name="auftragsart">
+          <option value="entruempelung" selected>Entrümpelung</option>
+          <option value="abbruch">Abbruch / Rückbau</option>
+          <option value="bau">Bau / Montage</option>
+          <option value="sonstiges">Sonstiges</option>
+        </select>
+        <p class="hinweis" id="art-hinweis"></p>
       </div>
 
       <div class="feld">
-        <label for="zimmer">Anzahl Zimmer</label>
-        <p class="hinweis">Ohne Bad, Küche und Flur</p>
-        <input type="number" id="zimmer" name="zimmer"
-               inputmode="numeric" min="1" max="40" step="1"
-               placeholder="z. B. 3" required>
-        <p class="fehler" data-fehler-fuer="zimmer" hidden></p>
+        <label for="beschreibung">Was ist zu tun?</label>
+        <p class="hinweis">
+          Kurz in eigenen Worten – steht später so im PDF
+        </p>
+        <textarea id="beschreibung" name="beschreibung" rows="3"
+          placeholder="z. B. Treppe zum Dachboden bauen, alte Unterkonstruktion abreißen und entsorgen"></textarea>
       </div>
+    </section>
+
+    <!-- ---------------------------------------------------------------
+         2. Umfang — je Auftragsart unterschiedliche Felder
+         --------------------------------------------------------------- -->
+    <section class="karte">
+      <h2><span class="schritt">2</span> Der Umfang</h2>
+
+      <!-- ===== nur Entrümpelung ===== -->
+      <div data-modell="flaeche">
+        <div class="feld">
+          <label for="wohnflaeche">Wohnfläche in m²</label>
+          <p class="hinweis">Schätzung genügt – z. B. 65</p>
+          <input type="number" id="wohnflaeche" name="wohnflaeche"
+                 inputmode="numeric" min="1" max="2000" step="1" placeholder="z. B. 65">
+          <p class="fehler" data-fehler-fuer="wohnflaeche" hidden></p>
+        </div>
+
+        <div class="feld">
+          <label for="zimmer">Anzahl Zimmer</label>
+          <p class="hinweis">Ohne Bad, Küche und Flur – nur für das PDF</p>
+          <input type="number" id="zimmer" name="zimmer"
+                 inputmode="numeric" min="1" max="40" step="1" placeholder="z. B. 3">
+          <p class="fehler" data-fehler-fuer="zimmer" hidden></p>
+        </div>
+
+        <div class="feld">
+          <span class="label-block">Wie voll ist das Objekt?</span>
+          <div class="auswahl-liste">
+            <label class="auswahl">
+              <input type="radio" name="vermuellungsgrad" value="leicht" checked>
+              <span class="auswahl-inhalt">
+                <span class="auswahl-titel">Leicht</span>
+                <span class="auswahl-text">Normal möbliert, alles gut zugänglich, keine Sonderfälle.</span>
+              </span>
+            </label>
+            <label class="auswahl">
+              <input type="radio" name="vermuellungsgrad" value="mittel">
+              <span class="auswahl-inhalt">
+                <span class="auswahl-titel">Mittel</span>
+                <span class="auswahl-text">Viele Kartons, Schränke voll, Wege teilweise zugestellt.</span>
+              </span>
+            </label>
+            <label class="auswahl">
+              <input type="radio" name="vermuellungsgrad" value="stark">
+              <span class="auswahl-inhalt">
+                <span class="auswahl-titel">Stark</span>
+                <span class="auswahl-text">Räume stark zugestellt, Bodenfläche kaum sichtbar, hoher Aufwand.</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div class="feld">
+          <span class="label-block">Kellerabteil zusätzlich?</span>
+          <div class="schalter">
+            <label class="schalter-option">
+              <input type="radio" name="kellerabteil" value="ja">
+              <span>Ja</span>
+            </label>
+            <label class="schalter-option">
+              <input type="radio" name="kellerabteil" value="nein" checked>
+              <span>Nein</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Abbruch / Bau / Sonstiges ===== -->
+      <div data-modell="stunden" hidden>
+        <div class="feld">
+          <label for="dauer">Geschätzte Dauer vor Ort in Stunden</label>
+          <p class="hinweis">
+            Wie lange seid ihr dort? Ein Arbeitstag ≈ 8 Std.,
+            zwei Tage ≈ 16 Std. Nicht Personenstunden – die rechnet
+            das Werkzeug selbst.
+          </p>
+          <input type="number" id="dauer" name="dauer"
+                 inputmode="decimal" min="0.5" max="400" step="0.5" placeholder="z. B. 16">
+          <p class="fehler" data-fehler-fuer="dauer" hidden></p>
+        </div>
+
+        <div class="feld">
+          <span class="label-block">Wie schwierig ist die Arbeit?</span>
+          <div class="auswahl-liste">
+            <label class="auswahl">
+              <input type="radio" name="erschwernis" value="einfach" checked>
+              <span class="auswahl-inhalt">
+                <span class="auswahl-titel">Einfach</span>
+                <span class="auswahl-text">Guter Zugang, Platz zum Arbeiten, keine Besonderheiten.</span>
+              </span>
+            </label>
+            <label class="auswahl">
+              <input type="radio" name="erschwernis" value="mittel">
+              <span class="auswahl-inhalt">
+                <span class="auswahl-titel">Mittel</span>
+                <span class="auswahl-text">Enger Zugang, Altbau, Arbeiten über Kopf, Staubschutz nötig.</span>
+              </span>
+            </label>
+            <label class="auswahl">
+              <input type="radio" name="erschwernis" value="schwer">
+              <span class="auswahl-inhalt">
+                <span class="auswahl-titel">Schwer</span>
+                <span class="auswahl-text">Sehr beengt, unklarer Untergrund, Winterbaustelle, hohe Sorgfalt.</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div class="feld">
+          <label for="material">Materialkosten in €</label>
+          <p class="hinweis">
+            Was ihr einkaufen müsst (Holz, Schrauben, Beton …).
+            Leer lassen, wenn der Kunde das Material stellt.
+          </p>
+          <input type="number" id="material" name="material"
+                 inputmode="numeric" min="0" max="100000" step="10" placeholder="z. B. 900">
+        </div>
+      </div>
+
+      <!-- ===== gilt für alle Auftragsarten ===== -->
+      <div class="feld">
+        <label for="personen">Anzahl Personen</label>
+        <p class="hinweis">Wer ist vor Ort? Beeinflusst die Zeitplanung</p>
+        <select id="personen" name="personen">
+          <option value="1">1 Person</option>
+          <option value="2" selected>2 Personen</option>
+          <option value="3">3 Personen</option>
+          <option value="4">4 Personen</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------------
+         3. Zugang und Entsorgung
+         --------------------------------------------------------------- -->
+    <section class="karte">
+      <h2><span class="schritt">3</span> Zugang &amp; Entsorgung</h2>
 
       <div class="feld">
         <label for="etage">Etage</label>
@@ -63,7 +204,7 @@
         </select>
       </div>
 
-      <div class="feld" id="feld-aufzug">
+      <div class="feld">
         <span class="label-block">Aufzug vorhanden?</span>
         <div class="schalter">
           <label class="schalter-option">
@@ -76,78 +217,44 @@
           </label>
         </div>
       </div>
-    </section>
-
-    <!-- ---------------------------------------------------------------
-         2. Umfang
-         --------------------------------------------------------------- -->
-    <section class="karte">
-      <h2><span class="schritt">2</span> Der Umfang</h2>
 
       <div class="feld">
-        <span class="label-block">Wie voll ist das Objekt?</span>
+        <span class="label-block">Was muss entsorgt werden?</span>
+        <p class="hinweis">Mehrfachauswahl – nur ankreuzen, was anfällt</p>
         <div class="auswahl-liste">
           <label class="auswahl">
-            <input type="radio" name="vermuellungsgrad" value="leicht" checked>
-            <span class="auswahl-inhalt">
-              <span class="auswahl-titel">Leicht</span>
-              <span class="auswahl-text">Normal möbliert, alles gut zugänglich, keine Sonderfälle.</span>
-            </span>
-          </label>
-          <label class="auswahl">
-            <input type="radio" name="vermuellungsgrad" value="mittel">
-            <span class="auswahl-inhalt">
-              <span class="auswahl-titel">Mittel</span>
-              <span class="auswahl-text">Viele Kartons, Schränke voll, Wege teilweise zugestellt.</span>
-            </span>
-          </label>
-          <label class="auswahl">
-            <input type="radio" name="vermuellungsgrad" value="stark">
-            <span class="auswahl-inhalt">
-              <span class="auswahl-titel">Stark</span>
-              <span class="auswahl-text">Räume stark zugestellt, Bodenfläche kaum sichtbar, hoher Aufwand.</span>
-            </span>
-          </label>
-        </div>
-      </div>
-
-      <div class="feld">
-        <span class="label-block">Kellerabteil zusätzlich entrümpeln?</span>
-        <div class="schalter">
-          <label class="schalter-option">
-            <input type="radio" name="kellerabteil" value="ja">
-            <span>Ja</span>
-          </label>
-          <label class="schalter-option">
-            <input type="radio" name="kellerabteil" value="nein" checked>
-            <span>Nein</span>
-          </label>
-        </div>
-      </div>
-
-      <div class="feld">
-        <span class="label-block">Besondere Gegenstände</span>
-        <p class="hinweis">Mehrfachauswahl möglich – bitte alles ankreuzen, was zutrifft</p>
-        <div class="auswahl-liste">
-          <label class="auswahl">
-            <input type="checkbox" name="gegenstaende" value="sperrmuell">
+            <input type="checkbox" name="entsorgung" value="sperrmuell">
             <span class="auswahl-inhalt">
               <span class="auswahl-titel">Sperrmüll</span>
               <span class="auswahl-text">Möbel, Matratzen, Teppiche</span>
             </span>
           </label>
           <label class="auswahl">
-            <input type="checkbox" name="gegenstaende" value="elektroschrott">
+            <input type="checkbox" name="entsorgung" value="elektroschrott">
             <span class="auswahl-inhalt">
               <span class="auswahl-titel">Elektroschrott</span>
               <span class="auswahl-text">Kühlschrank, Fernseher, Elektrogeräte</span>
             </span>
           </label>
           <label class="auswahl">
-            <input type="checkbox" name="gegenstaende" value="sondermuell">
+            <input type="checkbox" name="entsorgung" value="sondermuell">
             <span class="auswahl-inhalt">
               <span class="auswahl-titel">Sondermüll</span>
               <span class="auswahl-text">Farben, Lacke, Chemikalien</span>
+            </span>
+          </label>
+          <label class="auswahl">
+            <input type="checkbox" name="entsorgung" value="bauschutt">
+            <span class="auswahl-inhalt">
+              <span class="auswahl-titel">Bauschutt</span>
+              <span class="auswahl-text">Container für Steine, Fliesen, Mörtel</span>
+            </span>
+          </label>
+          <label class="auswahl">
+            <input type="checkbox" name="entsorgung" value="altholz">
+            <span class="auswahl-inhalt">
+              <span class="auswahl-titel">Altholz / Bauholz</span>
+              <span class="auswahl-text">Alte Unterkonstruktion, Balken, Bretter</span>
             </span>
           </label>
         </div>
@@ -155,10 +262,10 @@
     </section>
 
     <!-- ---------------------------------------------------------------
-         3. Kontaktdaten (nur für das PDF, bleiben im Browser)
+         4. Kundendaten (nur für das PDF)
          --------------------------------------------------------------- -->
     <section class="karte">
-      <h2><span class="schritt">3</span> Kundendaten</h2>
+      <h2><span class="schritt">4</span> Kundendaten</h2>
       <p class="datenschutz-kasten">
         Nur für die PDF-Zusammenfassung. Die Angaben werden nirgends
         gespeichert und nicht versendet – sie verlassen den Browser nicht.
@@ -172,7 +279,7 @@
       </div>
 
       <div class="feld">
-        <label for="adresse">Adresse des Objekts</label>
+        <label for="adresse">Adresse / Baustelle</label>
         <input type="text" id="adresse" name="adresse"
                autocomplete="off" placeholder="Straße, PLZ, Ort">
       </div>
@@ -192,12 +299,19 @@
        ----------------------------------------------------------------- -->
   <section class="karte ergebnis" id="ergebnis" hidden aria-live="polite">
     <h2>Ergebnis</h2>
+    <p class="ergebnis-art" id="ergebnis-art">–</p>
 
     <p class="preis-label">Das sagen wir dem Kunden</p>
     <p class="preis" id="preis-anzeige">–</p>
 
     <p class="preis-label">Interner Richtwert</p>
     <p class="richtwert" id="richtwert-anzeige">–</p>
+
+    <ul class="plan-liste">
+      <li><span>Personenstunden</span><span id="plan-stunden">–</span></li>
+      <li><span id="plan-dauer-label">Dauer vor Ort</span><span id="plan-dauer">–</span></li>
+      <li><span>Zeitslot im Kalender</span><span id="plan-slot">–</span></li>
+    </ul>
 
     <details class="details">
       <summary>Wie kommt der Preis zustande?</summary>
@@ -221,7 +335,7 @@
     <p class="fuss-klein">
       Internes Werkzeug. Alle Berechnungen laufen im Browser –
       keine Speicherung, keine Cookies, keine Übertragung an einen Server.
-      Preise und Formel stehen in <code>js/pricing.js</code>.
+      Preise und Formeln stehen in <code>js/pricing.js</code>.
     </p>
   </footer>
 </main>
