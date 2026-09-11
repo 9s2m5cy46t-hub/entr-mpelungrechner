@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrümpelungsrechner – Just &amp; Luis, Braunschweig-Stöckheim</title>
+<meta name="description" content="Kostenloser Entrümpelungsrechner: Preisspanne für Ihre Entrümpelung in Braunschweig und Umgebung sofort berechnen. Ohne Anmeldung, ohne Datenübertragung.">
+<meta name="theme-color" content="#2f6b3c">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
+</head>
+<body>
+
+<header class="kopf">
+  <div class="inhalt">
+    <p class="kopf-firma">Just &amp; Luis Entrümpelung</p>
+    <h1>Entrümpelungs&shy;rechner</h1>
+    <p class="kopf-text">
+      In einer Minute zur Preisspanne – kostenlos und unverbindlich.
+      Ihre Angaben bleiben auf Ihrem Gerät.
+    </p>
+  </div>
+</header>
+
+<main class="inhalt">
+
+  <form id="rechner-formular" novalidate>
+
+    <!-- ---------------------------------------------------------------
+         1. Objekt
+         --------------------------------------------------------------- -->
+    <section class="karte">
+      <h2><span class="schritt">1</span> Das Objekt</h2>
+
+      <div class="feld">
+        <label for="wohnflaeche">Wohnfläche in m²</label>
+        <p class="hinweis">Schätzung genügt – z. B. 65</p>
+        <input type="number" id="wohnflaeche" name="wohnflaeche"
+               inputmode="numeric" min="1" max="2000" step="1"
+               placeholder="z. B. 65" required>
+        <p class="fehler" data-fehler-fuer="wohnflaeche" hidden></p>
+      </div>
+
+      <div class="feld">
+        <label for="zimmer">Anzahl Zimmer</label>
+        <p class="hinweis">Ohne Bad, Küche und Flur</p>
+        <input type="number" id="zimmer" name="zimmer"
+               inputmode="numeric" min="1" max="40" step="1"
+               placeholder="z. B. 3" required>
+        <p class="fehler" data-fehler-fuer="zimmer" hidden></p>
+      </div>
+
+      <div class="feld">
+        <label for="etage">Etage</label>
+        <select id="etage" name="etage">
+          <option value="eg" selected>Erdgeschoss</option>
+          <option value="1">1. Etage</option>
+          <option value="2">2. Etage</option>
+          <option value="3">3. Etage</option>
+          <option value="4">4. Etage</option>
+          <option value="5">5. Etage</option>
+          <option value="hoeher">6. Etage oder höher</option>
+        </select>
+      </div>
+
+      <div class="feld" id="feld-aufzug">
+        <span class="label-block">Aufzug vorhanden?</span>
+        <div class="schalter">
+          <label class="schalter-option">
+            <input type="radio" name="aufzug" value="ja">
+            <span>Ja</span>
+          </label>
+          <label class="schalter-option">
+            <input type="radio" name="aufzug" value="nein" checked>
+            <span>Nein</span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------------
+         2. Umfang
+         --------------------------------------------------------------- -->
+    <section class="karte">
+      <h2><span class="schritt">2</span> Der Umfang</h2>
+
+      <div class="feld">
+        <span class="label-block">Wie voll ist das Objekt?</span>
+        <div class="auswahl-liste">
+          <label class="auswahl">
+            <input type="radio" name="vermuellungsgrad" value="leicht" checked>
+            <span class="auswahl-inhalt">
+              <span class="auswahl-titel">Leicht</span>
+              <span class="auswahl-text">Normal möbliert, alles gut zugänglich, keine Sonderfälle.</span>
+            </span>
+          </label>
+          <label class="auswahl">
+            <input type="radio" name="vermuellungsgrad" value="mittel">
+            <span class="auswahl-inhalt">
+              <span class="auswahl-titel">Mittel</span>
+              <span class="auswahl-text">Viele Kartons, Schränke voll, Wege teilweise zugestellt.</span>
+            </span>
+          </label>
+          <label class="auswahl">
+            <input type="radio" name="vermuellungsgrad" value="stark">
+            <span class="auswahl-inhalt">
+              <span class="auswahl-titel">Stark</span>
+              <span class="auswahl-text">Räume stark zugestellt, Bodenfläche kaum sichtbar, hoher Aufwand.</span>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div class="feld">
+        <span class="label-block">Kellerabteil zusätzlich entrümpeln?</span>
+        <div class="schalter">
+          <label class="schalter-option">
+            <input type="radio" name="kellerabteil" value="ja">
+            <span>Ja</span>
+          </label>
+          <label class="schalter-option">
+            <input type="radio" name="kellerabteil" value="nein" checked>
+            <span>Nein</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="feld">
+        <span class="label-block">Besondere Gegenstände</span>
+        <p class="hinweis">Mehrfachauswahl möglich – bitte alles ankreuzen, was zutrifft</p>
+        <div class="auswahl-liste">
+          <label class="auswahl">
+            <input type="checkbox" name="gegenstaende" value="sperrmuell">
+            <span class="auswahl-inhalt">
+              <span class="auswahl-titel">Sperrmüll</span>
+              <span class="auswahl-text">Möbel, Matratzen, Teppiche</span>
+            </span>
+          </label>
+          <label class="auswahl">
+            <input type="checkbox" name="gegenstaende" value="elektroschrott">
+            <span class="auswahl-inhalt">
+              <span class="auswahl-titel">Elektroschrott</span>
+              <span class="auswahl-text">Kühlschrank, Fernseher, Elektrogeräte</span>
+            </span>
+          </label>
+          <label class="auswahl">
+            <input type="checkbox" name="gegenstaende" value="sondermuell">
+            <span class="auswahl-inhalt">
+              <span class="auswahl-titel">Sondermüll</span>
+              <span class="auswahl-text">Farben, Lacke, Chemikalien</span>
+            </span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------------
+         3. Kontaktdaten (nur für das PDF, bleiben im Browser)
+         --------------------------------------------------------------- -->
+    <section class="karte">
+      <h2><span class="schritt">3</span> Ihre Daten</h2>
+      <p class="datenschutz-kasten">
+        <strong>Nur für Ihr PDF.</strong>
+        Diese Angaben werden nicht gespeichert und nicht versendet –
+        sie verlassen Ihren Browser nicht. Sie können die Felder auch leer lassen
+        und trotzdem rechnen.
+      </p>
+
+      <div class="feld">
+        <label for="kundenname">Name</label>
+        <input type="text" id="kundenname" name="kundenname"
+               autocomplete="name" placeholder="Vor- und Nachname">
+      </div>
+
+      <div class="feld">
+        <label for="adresse">Adresse des Objekts</label>
+        <input type="text" id="adresse" name="adresse"
+               autocomplete="street-address" placeholder="Straße, PLZ, Ort">
+      </div>
+
+      <div class="feld">
+        <label for="telefon">Telefonnummer</label>
+        <input type="tel" id="telefon" name="telefon"
+               autocomplete="tel" placeholder="für Ihren Rückruf">
+      </div>
+    </section>
+
+    <button type="submit" class="knopf knopf-gross">Preis berechnen</button>
+  </form>
+
+  <!-- -----------------------------------------------------------------
+       Ergebnis
+       ----------------------------------------------------------------- -->
+  <section class="karte ergebnis" id="ergebnis" hidden aria-live="polite">
+    <h2>Ihre Preisspanne</h2>
+    <p class="preis" id="preis-anzeige">–</p>
+    <p class="preis-hinweis">
+      Unverbindliche Schätzung – das finale Angebot machen wir nach
+      kurzer Rücksprache oder einem Blick vor Ort.
+    </p>
+
+    <details class="details">
+      <summary>Wie kommt der Preis zustande?</summary>
+      <ul class="aufschluesselung" id="aufschluesselung"></ul>
+    </details>
+
+    <button type="button" class="knopf knopf-pdf" id="pdf-knopf">
+      Als PDF zusammenfassen
+    </button>
+    <p class="pdf-hinweis">
+      Das PDF wird direkt auf Ihrem Gerät erzeugt und heruntergeladen.
+      Nichts wird übertragen.
+    </p>
+    <p class="fehler" id="pdf-fehler" hidden></p>
+
+    <button type="button" class="knopf knopf-flach" id="neu-knopf">
+      Neu berechnen
+    </button>
+  </section>
+
+  <!-- -----------------------------------------------------------------
+       Vertrauen / Über uns
+       ----------------------------------------------------------------- -->
+  <section class="karte ueber-uns">
+    <h2>Wer wir sind</h2>
+    <p>
+      Wir sind <strong>Just und Luis</strong>, Cousins aus
+      <strong>Braunschweig-Stöckheim</strong>. Wir entrümpeln Wohnungen,
+      Häuser, Keller und Dachböden – zuverlässig, sauber und zum
+      vorher abgesprochenen Preis.
+    </p>
+    <ul class="haken-liste">
+      <li>Festpreis vor Arbeitsbeginn – keine Überraschungen</li>
+      <li>Besenreine Übergabe</li>
+      <li>Fachgerechte Entsorgung und Verwertung</li>
+      <li>Kurzfristige Termine in Braunschweig und Umgebung</li>
+    </ul>
+  </section>
+
+  <footer class="fuss">
+    <p><strong>Just &amp; Luis Entrümpelung</strong><br>Braunschweig-Stöckheim</p>
+    <p>Mobil: <a href="tel:+4901797499007">0179 7499007</a></p>
+    <p class="fuss-klein">
+      Alle Berechnungen laufen ausschließlich in Ihrem Browser.
+      Diese Seite speichert keine Daten, setzt keine Cookies und
+      sendet keine Eingaben an einen Server.
+    </p>
+  </footer>
+</main>
+
+<!-- Fixe Anruf-Leiste am unteren Bildschirmrand -->
+<div class="anruf-leiste">
+  <a class="anruf-knopf" href="tel:+4901797499007">
+    <span class="anruf-icon" aria-hidden="true">📞</span>
+    <span class="anruf-text">
+      <span class="anruf-oben">Jetzt anrufen</span>
+      <span class="anruf-unten">0179 7499007</span>
+    </span>
+  </a>
+</div>
+
+<!-- jsPDF über CDN – wird nur für die PDF-Erzeugung gebraucht -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<script src="js/pricing.js" defer></script>
+<script src="js/pdf.js" defer></script>
+<script src="js/app.js" defer></script>
+</body>
+</html>

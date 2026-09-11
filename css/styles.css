@@ -1,0 +1,383 @@
+/* =============================================================================
+ * styles.css — Entrümpelungsrechner
+ * Mobile-first, große Schrift und große Klickflächen (Zielgruppe auch ältere
+ * Kunden), Farbschema Grün / Erdtöne.
+ * ========================================================================== */
+
+:root {
+  /* Farben */
+  --gruen-dunkel: #2f6b3c;
+  --gruen: #3d8b4f;
+  --gruen-hell: #eaf3ea;
+  --erde: #7a5c3e;
+  --erde-hell: #f6f1e8;
+  --sand: #fbf8f2;
+  --text: #24211d;
+  --text-leise: #5c564e;
+  --linie: #ddd4c6;
+  --weiss: #ffffff;
+  --rot: #a8322a;
+
+  /* Maße */
+  --radius: 14px;
+  --klickflaeche: 56px;   /* Mindesthöhe für alle bedienbaren Elemente */
+  --leiste-hoehe: 84px;   /* Höhe der fixen Anruf-Leiste */
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  /* Grundschrift bewusst groß: 19px statt der üblichen 16px */
+  font: 19px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text);
+  background: var(--sand);
+  /* Platz für die fixe Anruf-Leiste am unteren Rand freihalten */
+  padding-bottom: calc(var(--leiste-hoehe) + env(safe-area-inset-bottom, 0px));
+}
+
+.inhalt {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding-inline: 18px;
+}
+
+/* --- Kopfbereich ---------------------------------------------------------- */
+.kopf {
+  background: linear-gradient(160deg, var(--gruen-dunkel), var(--gruen));
+  color: var(--weiss);
+  padding-block: 26px 30px;
+}
+.kopf-firma {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+.kopf h1 {
+  margin: 0 0 10px;
+  font-size: 2.1rem;
+  line-height: 1.15;
+  hyphens: auto;
+}
+.kopf-text { margin: 0; font-size: 1.05rem; opacity: 0.95; }
+
+/* --- Karten --------------------------------------------------------------- */
+.karte {
+  background: var(--weiss);
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  padding: 20px 18px 24px;
+  margin-block: 20px;
+}
+.karte h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 18px;
+  font-size: 1.35rem;
+  color: var(--gruen-dunkel);
+}
+.schritt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--gruen-hell);
+  color: var(--gruen-dunkel);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+/* --- Formularfelder ------------------------------------------------------- */
+.feld { margin-bottom: 26px; }
+.feld:last-child { margin-bottom: 0; }
+
+label, .label-block {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.hinweis {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  color: var(--text-leise);
+}
+
+input[type="number"],
+input[type="text"],
+input[type="tel"],
+select {
+  width: 100%;
+  min-height: var(--klickflaeche);
+  padding: 12px 14px;
+  border: 2px solid var(--linie);
+  border-radius: 10px;
+  background: var(--weiss);
+  font-size: 1.15rem;
+  font-family: inherit;
+  color: var(--text);
+}
+select {
+  /* eigener Pfeil, damit die Auswahl auf allen Geräten gleich aussieht */
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%232f6b3c'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 28px;
+  padding-right: 46px;
+}
+input:focus-visible,
+select:focus-visible,
+button:focus-visible,
+a:focus-visible,
+.auswahl:focus-within,
+.schalter-option:focus-within {
+  outline: 3px solid var(--gruen);
+  outline-offset: 2px;
+}
+input[aria-invalid="true"] { border-color: var(--rot); }
+
+.fehler {
+  margin: 8px 0 0;
+  color: var(--rot);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* --- Ja/Nein-Schalter ----------------------------------------------------- */
+.schalter { display: flex; gap: 12px; }
+.schalter-option {
+  flex: 1;
+  margin: 0;
+  position: relative;
+}
+.schalter-option input { position: absolute; opacity: 0; inset: 0; }
+.schalter-option span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--klickflaeche);
+  border: 2px solid var(--linie);
+  border-radius: 10px;
+  background: var(--weiss);
+  font-size: 1.15rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.schalter-option input:checked + span {
+  border-color: var(--gruen-dunkel);
+  background: var(--gruen-dunkel);
+  color: var(--weiss);
+}
+
+/* --- Auswahlkacheln (Radio & Checkbox) ------------------------------------ */
+.auswahl-liste { display: flex; flex-direction: column; gap: 12px; }
+.auswahl {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin: 0;
+  padding: 16px;
+  border: 2px solid var(--linie);
+  border-radius: 12px;
+  background: var(--weiss);
+  cursor: pointer;
+}
+.auswahl input {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin: 2px 0 0;
+  accent-color: var(--gruen-dunkel);
+}
+.auswahl-inhalt { display: block; }
+.auswahl-titel {
+  display: block;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+.auswahl-text {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.98rem;
+  color: var(--text-leise);
+}
+.auswahl:has(input:checked) {
+  border-color: var(--gruen-dunkel);
+  background: var(--gruen-hell);
+}
+
+/* --- Knöpfe --------------------------------------------------------------- */
+.knopf {
+  display: block;
+  width: 100%;
+  min-height: 64px;
+  padding: 16px 20px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: var(--gruen-dunkel);
+  color: var(--weiss);
+  font-size: 1.25rem;
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.knopf:active { transform: translateY(1px); }
+.knopf-gross { margin-bottom: 8px; font-size: 1.35rem; }
+.knopf-pdf { background: var(--erde); margin-top: 22px; }
+.knopf-flach {
+  margin-top: 12px;
+  background: var(--weiss);
+  color: var(--gruen-dunkel);
+  border-color: var(--gruen-dunkel);
+}
+
+/* --- Ergebnis ------------------------------------------------------------- */
+.ergebnis {
+  border: 2px solid var(--gruen-dunkel);
+  background: var(--gruen-hell);
+  scroll-margin-top: 16px;
+}
+.preis {
+  margin: 0 0 10px;
+  /* skaliert mit der Bildschirmbreite, damit die Preiszeile auch auf
+     kleinen Handys in einer Zeile bleibt */
+  font-size: clamp(1.7rem, 7.4vw, 2.3rem);
+  line-height: 1.2;
+  font-weight: 800;
+  color: var(--gruen-dunkel);
+}
+.preis-hinweis { margin: 0; font-size: 1.02rem; color: var(--text-leise); }
+.pdf-hinweis {
+  margin: 10px 0 0;
+  font-size: 0.95rem;
+  color: var(--text-leise);
+}
+
+.details { margin-top: 18px; }
+.details summary {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--gruen-dunkel);
+  cursor: pointer;
+}
+.aufschluesselung {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 1rem;
+}
+.aufschluesselung li {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--linie);
+}
+/* Bezeichnung darf umbrechen, der Betrag rechts nie */
+.aufschluesselung li > span:first-child { min-width: 0; }
+.aufschluesselung li > span:last-child { white-space: nowrap; }
+.aufschluesselung li:last-child { border-bottom: none; }
+.aufschluesselung .summe { font-weight: 800; color: var(--gruen-dunkel); }
+
+/* --- Datenschutz-Kasten --------------------------------------------------- */
+.datenschutz-kasten {
+  margin: 0 0 22px;
+  padding: 14px 16px;
+  border-left: 5px solid var(--erde);
+  border-radius: 8px;
+  background: var(--erde-hell);
+  font-size: 1rem;
+}
+
+/* --- Über uns ------------------------------------------------------------- */
+.ueber-uns { background: var(--erde-hell); border-color: #e3d8c5; }
+.ueber-uns p { margin-top: 0; }
+.haken-liste { margin: 0; padding: 0; list-style: none; }
+.haken-liste li {
+  position: relative;
+  padding: 7px 0 7px 34px;
+}
+.haken-liste li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  color: var(--gruen-dunkel);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+/* --- Fußzeile ------------------------------------------------------------- */
+.fuss {
+  padding: 8px 0 28px;
+  font-size: 1rem;
+  color: var(--text-leise);
+}
+.fuss a { color: var(--gruen-dunkel); font-weight: 700; }
+.fuss-klein { font-size: 0.9rem; }
+
+/* --- Fixe Anruf-Leiste ---------------------------------------------------- */
+.anruf-leiste {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: rgba(251, 248, 242, 0.97);
+  border-top: 1px solid var(--linie);
+  box-shadow: 0 -3px 14px rgba(0, 0, 0, 0.09);
+}
+.anruf-knopf {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  max-width: 612px;
+  margin: 0 auto;
+  min-height: 62px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  background: var(--gruen-dunkel);
+  color: var(--weiss);
+  text-decoration: none;
+}
+.anruf-icon { font-size: 1.6rem; }
+.anruf-text { display: flex; flex-direction: column; line-height: 1.2; }
+.anruf-oben { font-size: 0.92rem; opacity: 0.9; }
+.anruf-unten { font-size: 1.35rem; font-weight: 800; letter-spacing: 0.02em; }
+
+/* --- Etwas mehr Luft auf größeren Bildschirmen ---------------------------- */
+@media (min-width: 700px) {
+  .kopf { padding-block: 42px 46px; }
+  .kopf h1 { font-size: 2.6rem; }
+  .karte { padding: 26px 26px 30px; }
+  .preis { font-size: 2.6rem; }
+}
+
+/* --- Druck: Anruf-Leiste und Formular ausblenden -------------------------- */
+@media print {
+  .anruf-leiste, .knopf, .kopf { display: none !important; }
+  body { padding-bottom: 0; background: #fff; }
+  .karte { border: none; margin: 0; padding: 0; }
+}
+
+/* --- Reduzierte Bewegung -------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+  .knopf:active { transform: none; }
+}
