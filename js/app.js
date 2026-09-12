@@ -17,6 +17,9 @@
   const planDauer = document.getElementById('plan-dauer');
   const planDauerLabel = document.getElementById('plan-dauer-label');
   const planSlot = document.getElementById('plan-slot');
+  const planFahrten = document.getElementById('plan-fahrten');
+  const zoneAuswahl = document.getElementById('zone');
+  const feldKilometer = document.getElementById('feld-kilometer');
   const aufschluesselungListe = document.getElementById('aufschluesselung');
   const pdfKnopf = document.getElementById('pdf-knopf');
   const pdfFehler = document.getElementById('pdf-fehler');
@@ -41,6 +44,12 @@
   function aktuellesModell() {
     const art = artAuswahl.value;
     return (AUFTRAGSARTEN[art] || AUFTRAGSARTEN.entruempelung).modell;
+  }
+
+  function zeigeKilometerfeld() {
+    const brauchtKm = zoneAuswahl.value === 'zone4';
+    feldKilometer.hidden = !brauchtKm;
+    if (!brauchtKm) zeigeFehler('kilometer', '');
   }
 
   function zeigePassendeFelder() {
@@ -73,11 +82,15 @@
       dauer: Number(daten.get('dauer')),
       erschwernis: daten.get('erschwernis'),
       material: Number(daten.get('material')) || 0,
+      volumen: Number(daten.get('volumen')) || 0,
       // alle Auftragsarten
       personen: Number(daten.get('personen')) || 1,
       etage: daten.get('etage'),
       aufzug: daten.get('aufzug') === 'ja',
-      entsorgung: daten.getAll('entsorgung'),
+      zone: daten.get('zone'),
+      kilometer: Number(daten.get('kilometer')) || 0,
+      abfallarten: daten.getAll('abfallarten'),
+      zusatzkosten: Number(daten.get('zusatzkosten')) || 0,
       // Kundendaten (nur fürs PDF)
       kundenname: (daten.get('kundenname') || '').trim(),
       adresse: (daten.get('adresse') || '').trim(),
@@ -125,6 +138,14 @@
       pruefeFeld('dauer',
         !eingaben.dauer || eingaben.dauer <= 0,
         'Bitte schätzen, wie lange die Arbeit dauert.');
+    }
+
+    if (eingaben.zone === 'zone4') {
+      pruefeFeld('kilometer',
+        !eingaben.kilometer || eingaben.kilometer <= 0,
+        'Bitte die Entfernung in Kilometern angeben.');
+    } else {
+      zeigeFehler('kilometer', '');
     }
 
     if (ersterFehler) {
@@ -185,6 +206,15 @@
     planDauerLabel.textContent = 'Dauer vor Ort (' + letztesErgebnis.personen + ' Pers.)';
     planDauer.textContent = formatStunden(letztesErgebnis.dauerVorOrt);
     planSlot.textContent = letztesErgebnis.zeitslotText;
+    if (letztesErgebnis.fahrten > 0) {
+      planFahrten.textContent = letztesErgebnis.fahrten + ' \u00d7 (' +
+        formatStunden(PREISE.transport.stundenProFahrt) + ')';
+      document.getElementById('plan-fahrten-label').textContent =
+        'Fahrten für ' + formatVolumen(letztesErgebnis.volumen);
+    } else {
+      planFahrten.textContent = 'keine';
+      document.getElementById('plan-fahrten-label').textContent = 'Fahrten zur Entsorgung';
+    }
 
     zeigeAufschluesselung(letztesErgebnis);
 
@@ -196,6 +226,12 @@
   /* ---------------------------------------------------------------------------
    * Auftragsart wechseln
    * ------------------------------------------------------------------------ */
+  zoneAuswahl.addEventListener('change', function () {
+    zeigeKilometerfeld();
+    ergebnisBereich.hidden = true;
+    letztesErgebnis = null;
+  });
+
   artAuswahl.addEventListener('change', function () {
     zeigePassendeFelder();
     ergebnisBereich.hidden = true;
@@ -237,12 +273,14 @@
     ergebnisBereich.hidden = true;
     letztesErgebnis = null;
     formular.reset();
-    ['wohnflaeche', 'zimmer', 'dauer'].forEach(function (n) { zeigeFehler(n, ''); });
+    ['wohnflaeche', 'zimmer', 'dauer', 'kilometer'].forEach(function (n) { zeigeFehler(n, ''); });
     zeigePassendeFelder();
+    zeigeKilometerfeld();
     window.scrollTo({ top: 0, behavior: 'smooth' });
     artAuswahl.focus();
   });
 
   // Startzustand herstellen
   zeigePassendeFelder();
+  zeigeKilometerfeld();
 })();

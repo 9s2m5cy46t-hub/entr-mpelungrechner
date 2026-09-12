@@ -8,6 +8,21 @@ Umfang eintippen – die Seite zeigt die Spanne, die man dem Kunden nennt, den
 exakten internen Richtwert und die Zeitplanung für den Kalender. Auf Knopfdruck
 entsteht daraus eine PDF-Zusammenfassung für den Kunden.
 
+## Betriebliche Grundlagen der Kalkulation
+
+Diese Annahmen stecken in den Zahlen. Ändert sich eine davon, muss
+`js/pricing.js` nachgezogen werden:
+
+| Grundlage | Wert | Wirkt auf |
+|---|---|---|
+| Standort | Kleiststraße, Braunschweig-Stöckheim | Anfahrtszonen |
+| Umsatzsteuer | Kleinunternehmer, § 19 UStG | Preise sind Endpreise, PDF-Hinweis |
+| Fahrzeug | Pkw mit Anhänger, ca. 4 m³ pro Fahrt | Anzahl Fahrten |
+| Entsorgung | selbst zum Wertstoffhof, 15 € pro Anlieferung | Entsorgungskosten |
+| Fahrtdauer | 45 Min pro Fahrt inkl. Abladen | Arbeitszeit und Preis |
+| Müllmenge | 20 m³ aus 60 m² bei leichtem Füllgrad | Volumen und Fahrten |
+| Mindestpreis | keiner | – |
+
 **Kein Backend, keine Datenbank, kein Build-Prozess.** Reines
 HTML/CSS/JavaScript – läuft direkt über GitHub Pages. Alle Berechnungen und die
 PDF-Erzeugung laufen im Browser; es werden keine Eingaben gespeichert oder an
@@ -118,29 +133,82 @@ gewählter Auftragsart unterschiedlich viel.
 **Entrümpelung**
 
 1. `Grundpauschale + Wohnfläche × Preis pro m²`
-2. `× Vermüllungs-Multiplikator` (wirkt auf den Arbeitsaufwand, nicht auf
-   die Entsorgungspauschalen)
-3. `+ Kellerabteil + gewählte Entsorgungsposten`
-4. Falls kein Aufzug: `× (1 + Etagen über EG × 15 %)`
+2. `× Vermüllungs-Multiplikator` (wirkt auf Pauschale und Flächenanteil,
+   nicht auf Gebühren und Nebenkosten)
+3. `+ Kellerabteil`, dazu als Nebenkosten Fahrten, Anfahrtszone und
+   Zusatzkosten
+4. Falls kein Aufzug: `× (1 + Etagen über EG × 15 %)` auf die Arbeit vor Ort
 
-Beispiel: 60 m², 3. Etage ohne Aufzug, mittel, Keller, Sperrmüll +
-Elektroschrott → Richtwert 720,65 € → Kundenspanne **„ca. 580–860 € VB"**.
+Beispiel: 60 m², 3. Etage ohne Aufzug, mittel, Keller, Zone 1 →
+26 m³ Müll → 7 Fahrten → Richtwert 1.275,40 € → Kundenspanne
+**„ca. 1.020–1.530 € VB"**, Zeitslot 11 Std. ≈ 1,5 Tage.
+
+Vor der Umstellung auf echte Transportkosten kam derselbe Auftrag auf
+720,65 €. Die Differenz von rund 555 € sind die sieben Fahrten zum
+Wertstoffhof – die fielen vorher unter den Tisch.
 
 **Stundenauftrag (Abbruch, Bau, Sonstiges)**
 
 1. `Personenstunden = Dauer vor Ort × Anzahl Personen`
 2. `Arbeitskosten = Personenstunden × Stundensatz`, dazu der
    Erschwernis-Aufschlag
-3. `+ Grundpauschale + Material (+ 10 % Beschaffung) + Entsorgungsposten`
-4. Falls kein Aufzug: `× (1 + Etagen über EG × 15 %)`
+3. `+ Grundpauschale`, dazu als Nebenkosten Material (+ 10 % Beschaffung),
+   Fahrten, Anfahrtszone und Zusatzkosten
+4. Falls kein Aufzug: `× (1 + Etagen über EG × 15 %)` auf die Arbeit vor Ort
 
 Beispiel: Treppe bauen, 2 Personen an 2 Tagen (16 Std. vor Ort), mittlere
-Erschwernis, 900 € Material, Altholz-Entsorgung → Richtwert 3.206 € →
-Kundenspanne **„ca. 2.560–3.850 € VB"**, Zeitslot 21 Std. ≈ 3 Tage.
+Erschwernis, 900 € Material, 3 m³ Altholz, 40 € Anhängermiete, Zone 1 →
+Richtwert 3.219,75 € → Kundenspanne **„ca. 2.580–3.860 € VB"**,
+Zeitslot 22 Std. ≈ 3 Tage.
 
 **Wichtig zur Eingabe:** „Dauer vor Ort" ist die Zeit, die ihr dort seid –
 nicht die Personenstunden. Zwei Leute an zwei Tagen sind **16 Stunden**, nicht
 32. Die Personenstunden rechnet das Werkzeug selbst.
+
+### Anfahrtszonen
+
+Gemessen von der Kleiststraße aus:
+
+| Zone | Gebiet | Zuschlag |
+|---|---|---|
+| 1 | Stöckheim, Melverode, Leiferde, Rüningen | 0 € |
+| 2 | Braunschweig, übriges Stadtgebiet | 20 € |
+| 3 | Umland bis ca. 25 km (Wolfenbüttel, Vechelde, Cremlingen, SZ-Lebenstedt) | 45 € |
+| 4 | weiter als 25 km | 45 € + 0,60 € je km über 25, Hin- und Rückfahrt |
+
+### Transport und Entsorgung
+
+Die Entsorgung wird nicht mehr über Pauschalen gerechnet, sondern über die
+tatsächlichen Fahrten:
+
+```
+Volumen  ÷ 4 m³ pro Fahrt, aufgerundet  =  Anzahl Fahrten
+Fahrten  × 15 €                         =  Anlieferungsgebühren
+Fahrten  × 0,75 Std. × Anzahl Personen  =  Fahrzeit (kostet Stundensatz)
+```
+
+Bei der Entrümpelung kommt das Volumen aus der Wohnfläche
+(0,33 m³ je m², mal Vermüllungsfaktor), beim Stundenauftrag gibt man es
+selbst an.
+
+Die Checkboxen bei „Was muss entsorgt werden?" sind dadurch **keine
+Preispauschalen mehr**. Sie stehen im PDF und kosten nur dort extra, wo es
+real extra kostet – aktuell nur Sondermüll mit 60 €, weil der nicht mit auf
+den Anhänger darf. Zahlt ihr am Hof für Bauschutt gesondert, in
+`PREISE.abfallarten.bauschutt` eintragen.
+
+**Annahme zur Fahrzeit:** Es fahren alle mit, weil nur ein Fahrzeug da ist
+und Beladen zu zweit schneller geht. Die Fahrzeit zählt deshalb für jede
+Person. Wenn einer weiterarbeitet, während der andere fährt:
+`PREISE.transport.nurEinePersonFaehrt` auf `true` setzen.
+
+### Etagenaufschlag
+
+Der Aufschlag von 15 % je Etage ohne Aufzug wirkt **nur auf die Arbeit vor
+Ort** – nicht auf Anlieferungsgebühren, Fahrzeit, Material, Anfahrtszone oder
+Zusatzkosten. Ursprünglich war „15 % auf den Gesamtpreis" vorgegeben. Das war
+vertretbar, solange der Transport keine eigene Position war; jetzt würde es
+die Deponiefahrt teurer machen, nur weil die Wohnung im dritten Stock liegt.
 
 ### Zeitplanung
 
@@ -151,15 +219,27 @@ nicht weiterhilft.
 
 ### Was zuerst geprüft werden sollte
 
-Zwei Zahlengruppen sind Schätzwerte und müssen gegen die Realität gehalten
-werden:
+- **Müllmenge je m²** (`entruempelung.kubikmeterProQuadratmeter`) – die Annahme
+  20 m³ aus 60 m² ist ein Erfahrungswert, nicht eure Messung. Nach den ersten
+  zwei echten Entrümpelungen die tatsächliche Zahl der Fahrten mit der
+  berechneten vergleichen und nachziehen. Diese Zahl bewegt den Preis stärker
+  als jede andere.
+- **Anlieferungspreis** (`transport.preisProAnlieferung`, 15 €) – prüfen, ob
+  der Hof euch als Gewerbe anders einstuft als privat, und ob Bauschutt oder
+  gemischte Ladungen mehr kosten.
+- **Erschwernisfaktoren** (`stundenAuftrag.erschwernis`) – 1,0 / 1,2 / 1,5 sind
+  bewusst niedriger als die Vermüllungsgrade, weil man die Stunden beim
+  Stundenauftrag selbst schätzt.
 
-- **`entsorgung.bauschutt` (250 €) und `entsorgung.altholz` (120 €)** –
-  Containerpreise schwanken regional und nach Menge erheblich. Einmal beim
-  Entsorger nachfragen und eintragen.
-- **`stundenAuftrag.erschwernis`** – die Faktoren 1,0 / 1,2 / 1,5 sind
-  bewusst niedriger als die Vermüllungsgrade, weil man die Stunden hier
-  selbst schätzt und der Faktor nur zusätzliche Erschwernis abdeckt.
+### Noch offen: Abfallrecht
+
+Wer Abfälle **gewerblich** befördert, muss das nach § 53 KrWG bei der
+zuständigen Behörde anzeigen; für gefährliche Abfälle gelten strengere
+Regeln (Erlaubnis nach § 54 KrWG). Sondermüll wie Farben und Chemikalien
+lässt sich als Gewerbe in der Regel nicht über die normale Annahmestelle
+abgeben. Das ist kein Rechtsrat – aber bevor die erste Entrümpelung mit
+Sondermüll ansteht, gehört das geklärt. Ansprechpartner ist die
+Abfallbehörde der Stadt Braunschweig.
 
 ## PDF
 

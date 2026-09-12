@@ -99,14 +99,14 @@ function erstellePDF(eingaben, ergebnis) {
 
   // Eine Zeile "Bezeichnung .......... Wert"
   function zeile(bezeichnung, wert) {
-    seitenumbruchPruefen(8);
+    seitenumbruchPruefen(7);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
     doc.setTextColor(36, 33, 29);
     doc.text(pdfSicher(bezeichnung), links, y);
     doc.setFont('helvetica', 'bold');
     doc.text(pdfSicher(wert), rechts, y, { align: 'right' });
-    y += 7;
+    y += 6.3;
   }
 
   function trennlinie(abstandDanach) {
@@ -118,26 +118,26 @@ function erstellePDF(eingaben, ergebnis) {
 
   function absatz(text, groesse) {
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(groesse || 10);
+    doc.setFontSize(groesse || 9.5);
     doc.setTextColor(92, 86, 78);
     const zeilen = doc.splitTextToSize(pdfSicher(text), rechts - links);
-    seitenumbruchPruefen(zeilen.length * 5);
+    seitenumbruchPruefen(zeilen.length * 4.6);
     doc.text(zeilen, links, y);
-    y += zeilen.length * 5;
+    y += zeilen.length * 4.6;
   }
 
   /* --- Kopfbereich --------------------------------------------------------- */
   doc.setFillColor(47, 107, 60);
-  doc.rect(0, 0, SEITE.breite, 30, 'F');
+  doc.rect(0, 0, SEITE.breite, 27, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(17);
   doc.setTextColor(255, 255, 255);
-  doc.text(pdfSicher(FIRMA.name), links, 14);
+  doc.text(pdfSicher(FIRMA.name), links, 13);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10.5);
-  doc.text(pdfSicher(FIRMA.ort + '  ·  Mobil ' + FIRMA.telefon), links, 22);
+  doc.text(pdfSicher(FIRMA.ort + '  ·  Mobil ' + FIRMA.telefon), links, 20.5);
 
-  y = 44;
+  y = 39;
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
@@ -153,7 +153,7 @@ function erstellePDF(eingaben, ergebnis) {
   doc.setFontSize(10.5);
   doc.setTextColor(92, 86, 78);
   doc.text(pdfSicher('Erstellt am ' + datumText), links, y);
-  y += 10;
+  y += 8;
 
   /* --- Kundendaten (nur wenn ausgefüllt) ---------------------------------- */
   const hatKundendaten = eingaben.kundenname || eingaben.adresse || eingaben.telefon;
@@ -163,7 +163,7 @@ function erstellePDF(eingaben, ergebnis) {
     if (eingaben.kundenname) zeile('Name', eingaben.kundenname);
     if (eingaben.adresse) zeile('Adresse / Baustelle', eingaben.adresse);
     if (eingaben.telefon) zeile('Telefon', eingaben.telefon);
-    y += 5;
+    y += 3.5;
   }
 
   /* --- Was ist zu tun ------------------------------------------------------ */
@@ -176,7 +176,7 @@ function erstellePDF(eingaben, ergebnis) {
     const beschreibungsZeilen = doc.splitTextToSize(pdfSicher(eingaben.beschreibung), rechts - links);
     seitenumbruchPruefen(beschreibungsZeilen.length * 5.5);
     doc.text(beschreibungsZeilen, links, y);
-    y += beschreibungsZeilen.length * 5.5 + 7;
+    y += beschreibungsZeilen.length * 5.2 + 5;
   }
 
   /* --- Angaben zum Auftrag ------------------------------------------------- */
@@ -202,10 +202,13 @@ function erstellePDF(eingaben, ergebnis) {
   // Voraussichtliche Dauer — hilft dem Kunden bei der Terminplanung.
   // Personenstunden und interner Richtwert stehen hier bewusst NICHT.
   zeile('Voraussichtliche Dauer vor Ort', formatZeitslot(ergebnis.zeitslot));
+  if (ergebnis.volumen > 0) {
+    zeile('Zu entsorgende Menge', formatVolumen(ergebnis.volumen));
+  }
 
   /* --- Entsorgung untereinander auflisten ---------------------------------- */
-  const entsorgungText = eingaben.entsorgung.length
-    ? eingaben.entsorgung.map(function (k) { return LABELS.entsorgung[k]; })
+  const entsorgungText = eingaben.abfallarten.length
+    ? eingaben.abfallarten.map(function (k) { return LABELS.abfallarten[k]; })
     : ['Keine'];
 
   seitenumbruchPruefen(8 + entsorgungText.length * 6);
@@ -217,23 +220,42 @@ function erstellePDF(eingaben, ergebnis) {
     doc.setFont('helvetica', 'bold');
     doc.text(pdfSicher(text), rechts, y + index * 6, { align: 'right' });
   });
-  y += entsorgungText.length * 6 + 6;
+  y += entsorgungText.length * 5.8 + 5;
 
   /* --- Preisspanne --------------------------------------------------------- */
   ueberschrift('Unverbindliche Kostenschätzung');
-  seitenumbruchPruefen(30);
+  // Platz für den ganzen Block prüfen: Preiskasten, Umsatzsteuer-Hinweis und
+  // Schlussabsatz. Sonst landet der Schlusstext allein auf einer neuen Seite.
+  seitenumbruchPruefen(58);
   doc.setFillColor(234, 243, 234);
   doc.setDrawColor(47, 107, 60);
   doc.setLineWidth(0.5);
-  doc.roundedRect(links, y, rechts - links, 22, 3, 3, 'FD');
+  doc.roundedRect(links, y, rechts - links, 20, 3, 3, 'FD');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(19);
   doc.setTextColor(47, 107, 60);
   // Preiszeile bewusst mit "-" und "EUR" statt "\u2013" und "\u20ac" (siehe pdfSicher)
   const preisZeile = 'ca. ' + formatZahl(ergebnis.spanneVon) + ' - ' +
     formatZahl(ergebnis.spanneBis) + ' EUR (VB)';
-  doc.text(pdfSicher(preisZeile), links + 6, y + 14.5);
-  y += 29;
+  doc.text(pdfSicher(preisZeile), links + 6, y + 13.5);
+  y += 26;
+
+  // Umsatzsteuer-Hinweis je nach Einstellung in pricing.js
+  if (PREISE.umsatzsteuer.kleinunternehmer) {
+    absatz(
+      'Der Betrag ist ein Endpreis. Als Kleinunternehmer nach § 19 UStG ' +
+      'weisen wir keine Umsatzsteuer aus.'
+    );
+  } else {
+    const satz = Math.round(PREISE.umsatzsteuer.satz * 100);
+    absatz(
+      'Die genannten Beträge sind Nettopreise. Hinzu kommen ' + satz +
+      ' % Umsatzsteuer, also brutto etwa ' +
+      formatZahl(Math.round(ergebnis.spanneVon * (1 + PREISE.umsatzsteuer.satz))) + ' bis ' +
+      formatZahl(Math.round(ergebnis.spanneBis * (1 + PREISE.umsatzsteuer.satz))) + ' EUR.'
+    );
+  }
+  y += 2;
 
   absatz(
     'Unverbindliche Schätzung auf Grundlage der oben genannten Angaben. ' +

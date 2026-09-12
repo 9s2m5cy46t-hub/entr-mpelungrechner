@@ -162,6 +162,16 @@
         </div>
 
         <div class="feld">
+          <label for="volumen">Zu entsorgendes Volumen in m³</label>
+          <p class="hinweis">
+            Grob schätzen: ein voller Anhänger sind etwa 4 m³.
+            Leer lassen, wenn nichts weggefahren werden muss.
+          </p>
+          <input type="number" id="volumen" name="volumen"
+                 inputmode="decimal" min="0" max="200" step="0.5" placeholder="z. B. 3">
+        </div>
+
+        <div class="feld">
           <label for="material">Materialkosten in €</label>
           <p class="hinweis">
             Was ihr einkaufen müsst (Holz, Schrauben, Beton …).
@@ -192,6 +202,27 @@
       <h2><span class="schritt">3</span> Zugang &amp; Entsorgung</h2>
 
       <div class="feld">
+        <label for="zone">Wo ist der Auftrag?</label>
+        <p class="hinweis">Entfernung von der Kleiststraße aus</p>
+        <select id="zone" name="zone">
+          <option value="zone1" selected>Stöckheim, Melverode, Leiferde, Rüningen</option>
+          <option value="zone2">Braunschweig, übriges Stadtgebiet</option>
+          <option value="zone3">Umland bis ca. 25 km (Wolfenbüttel, Vechelde, Cremlingen, SZ-Lebenstedt)</option>
+          <option value="zone4">Weiter als 25 km</option>
+        </select>
+      </div>
+
+      <div class="feld" id="feld-kilometer" hidden>
+        <label for="kilometer">Entfernung in km (einfache Strecke)</label>
+        <p class="hinweis">
+          Kilometer über 25 werden für Hin- und Rückfahrt berechnet
+        </p>
+        <input type="number" id="kilometer" name="kilometer"
+               inputmode="numeric" min="0" max="500" step="1" placeholder="z. B. 40">
+        <p class="fehler" data-fehler-fuer="kilometer" hidden></p>
+      </div>
+
+      <div class="feld">
         <label for="etage">Etage</label>
         <select id="etage" name="etage">
           <option value="eg" selected>Erdgeschoss</option>
@@ -220,44 +251,58 @@
 
       <div class="feld">
         <span class="label-block">Was muss entsorgt werden?</span>
-        <p class="hinweis">Mehrfachauswahl – nur ankreuzen, was anfällt</p>
+        <p class="hinweis">
+          Mehrfachauswahl. Die Fahrten zum Hof rechnet das Werkzeug über
+          das Volumen – hier geht es nur um Arten, die extra kosten oder
+          im PDF stehen sollen.
+        </p>
         <div class="auswahl-liste">
           <label class="auswahl">
-            <input type="checkbox" name="entsorgung" value="sperrmuell">
+            <input type="checkbox" name="abfallarten" value="sperrmuell">
             <span class="auswahl-inhalt">
               <span class="auswahl-titel">Sperrmüll</span>
               <span class="auswahl-text">Möbel, Matratzen, Teppiche</span>
             </span>
           </label>
           <label class="auswahl">
-            <input type="checkbox" name="entsorgung" value="elektroschrott">
+            <input type="checkbox" name="abfallarten" value="elektroschrott">
             <span class="auswahl-inhalt">
               <span class="auswahl-titel">Elektroschrott</span>
               <span class="auswahl-text">Kühlschrank, Fernseher, Elektrogeräte</span>
             </span>
           </label>
           <label class="auswahl">
-            <input type="checkbox" name="entsorgung" value="sondermuell">
+            <input type="checkbox" name="abfallarten" value="sondermuell">
             <span class="auswahl-inhalt">
               <span class="auswahl-titel">Sondermüll</span>
               <span class="auswahl-text">Farben, Lacke, Chemikalien</span>
             </span>
           </label>
           <label class="auswahl">
-            <input type="checkbox" name="entsorgung" value="bauschutt">
+            <input type="checkbox" name="abfallarten" value="bauschutt">
             <span class="auswahl-inhalt">
               <span class="auswahl-titel">Bauschutt</span>
               <span class="auswahl-text">Container für Steine, Fliesen, Mörtel</span>
             </span>
           </label>
           <label class="auswahl">
-            <input type="checkbox" name="entsorgung" value="altholz">
+            <input type="checkbox" name="abfallarten" value="altholz">
             <span class="auswahl-inhalt">
               <span class="auswahl-titel">Altholz / Bauholz</span>
               <span class="auswahl-text">Alte Unterkonstruktion, Balken, Bretter</span>
             </span>
           </label>
         </div>
+      </div>
+
+      <div class="feld">
+        <label for="zusatzkosten">Zusatzkosten in €</label>
+        <p class="hinweis">
+          Anhängermiete, geliehene Maschinen, Halteverbotszone –
+          leer lassen, wenn nichts anfällt
+        </p>
+        <input type="number" id="zusatzkosten" name="zusatzkosten"
+               inputmode="numeric" min="0" max="10000" step="5" placeholder="z. B. 40">
       </div>
     </section>
 
@@ -311,6 +356,7 @@
       <li><span>Personenstunden</span><span id="plan-stunden">–</span></li>
       <li><span id="plan-dauer-label">Dauer vor Ort</span><span id="plan-dauer">–</span></li>
       <li><span>Zeitslot im Kalender</span><span id="plan-slot">–</span></li>
+      <li><span id="plan-fahrten-label">Fahrten zur Entsorgung</span><span id="plan-fahrten">–</span></li>
     </ul>
 
     <details class="details">
