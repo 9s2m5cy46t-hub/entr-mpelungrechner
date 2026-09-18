@@ -106,7 +106,7 @@ function erstellePDF(eingaben, ergebnis) {
     doc.text(pdfSicher(bezeichnung), links, y);
     doc.setFont('helvetica', 'bold');
     doc.text(pdfSicher(wert), rechts, y, { align: 'right' });
-    y += 6.3;
+    y += 6.0;
   }
 
   function trennlinie(abstandDanach) {
@@ -152,7 +152,10 @@ function erstellePDF(eingaben, ergebnis) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10.5);
   doc.setTextColor(92, 86, 78);
-  doc.text(pdfSicher('Erstellt am ' + datumText), links, y);
+  const kopfzeile = eingaben.referenz
+    ? 'Erstellt am ' + datumText + '   \u00b7   Ihre Anfrage: ' + eingaben.referenz
+    : 'Erstellt am ' + datumText;
+  doc.text(pdfSicher(kopfzeile), links, y);
   y += 8;
 
   /* --- Kundendaten (nur wenn ausgefüllt) ---------------------------------- */
@@ -223,10 +226,11 @@ function erstellePDF(eingaben, ergebnis) {
   y += entsorgungText.length * 5.8 + 5;
 
   /* --- Preisspanne --------------------------------------------------------- */
+  // Platz für den GANZEN Schlussblock prüfen, bevor die Überschrift gesetzt
+  // wird: Überschrift, Preiskasten, Umsatzsteuer-Hinweis und Schlussabsatz.
+  // Sonst bleibt die Überschrift allein auf der Seite zurück.
+  seitenumbruchPruefen(64);
   ueberschrift('Unverbindliche Kostenschätzung');
-  // Platz für den ganzen Block prüfen: Preiskasten, Umsatzsteuer-Hinweis und
-  // Schlussabsatz. Sonst landet der Schlusstext allein auf einer neuen Seite.
-  seitenumbruchPruefen(58);
   doc.setFillColor(234, 243, 234);
   doc.setDrawColor(47, 107, 60);
   doc.setLineWidth(0.5);
@@ -258,11 +262,46 @@ function erstellePDF(eingaben, ergebnis) {
   y += 2;
 
   absatz(
-    'Unverbindliche Schätzung auf Grundlage der oben genannten Angaben. ' +
-    'Das finale Angebot machen wir nach kurzer Rücksprache oder einem Blick vor Ort. ' +
-    'Diese Zusammenfassung ist kein Vertrag und kein verbindliches Angebot.'
+    'Unverbindliche Schätzung auf Grundlage der genannten Angaben. Das finale ' +
+    'Angebot folgt nach kurzer Rücksprache oder einem Blick vor Ort. Kein Vertrag ' +
+    'und kein verbindliches Angebot.'
   );
   y += 4;
+
+  /* --- Screenshot der Anfrage als interner Anhang -------------------------
+   * Nur wenn im Werkzeug ausdrücklich angehakt. Die Mail enthält interne
+   * Einordnungen ("allein machbar", "eigener Container nötig?"), die ein
+   * Kunde nicht sehen soll — deshalb eine eigene, deutlich beschriftete
+   * Seite und kein stiller Anhang.
+   * ---------------------------------------------------------------------- */
+  if (eingaben.screenshot) {
+    doc.addPage();
+    doc.setFillColor(168, 50, 42); // Warnrot
+    doc.rect(0, 0, SEITE.breite, 16, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(255, 255, 255);
+    doc.text(pdfSicher('Interner Anhang – nicht an Kunden weitergeben'), links, 10.5);
+
+    doc.setTextColor(36, 33, 29);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(pdfSicher('Screenshot der Anfrage über die Website'), links, 26);
+
+    try {
+      const eigenschaften = doc.getImageProperties(eingaben.screenshot);
+      const maxBreite = rechts - links;
+      const maxHoehe = SEITE.hoehe - 32 - 24;
+      const faktor = Math.min(maxBreite / eigenschaften.width, maxHoehe / eigenschaften.height);
+      doc.addImage(
+        eingaben.screenshot, 'JPEG', links, 32,
+        eigenschaften.width * faktor, eigenschaften.height * faktor
+      );
+    } catch (fehler) {
+      doc.text(pdfSicher('Der Screenshot konnte nicht eingefügt werden.'), links, 40);
+      console.error(fehler);
+    }
+  }
 
   /* --- Fußzeile auf allen Seiten ------------------------------------------ */
   const seitenAnzahl = doc.getNumberOfPages();

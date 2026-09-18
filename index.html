@@ -25,6 +25,60 @@
 
 <main class="inhalt">
 
+  <!-- -----------------------------------------------------------------
+       Anfrage aus der Website übernehmen
+       ----------------------------------------------------------------- -->
+  <details class="karte import-karte" id="import-karte">
+    <summary>
+      <span class="import-titel">Anfrage aus der Website übernehmen</span>
+      <span class="import-unter">E-Mail-Text einfügen – füllt das Formular aus</span>
+    </summary>
+
+    <div class="import-inhalt">
+      <div class="feld">
+        <label for="import-text">Text der Benachrichtigungsmail</label>
+        <p class="hinweis">
+          In der Mail alles markieren und kopieren, hier einfügen.
+          Der Screenshot allein reicht nicht – aus einem Bild lassen sich
+          Zahlen nicht zuverlässig lesen.
+        </p>
+        <textarea id="import-text" rows="5"
+          placeholder="Anfrage-Nummer: A-260918-ZJFA&#10;Name: ...&#10;Ort: ...&#10;Was: Eine Wohnung&#10;Wie voll: Normal möbliert"></textarea>
+      </div>
+
+      <button type="button" class="knopf knopf-import" id="import-knopf">
+        Formular ausfüllen
+      </button>
+
+      <div id="import-bericht" class="import-bericht" hidden aria-live="polite"></div>
+
+      <div class="feld import-beleg">
+        <label for="import-bild">Screenshot als Beleg (optional)</label>
+        <p class="hinweis">
+          Wird nur angezeigt, damit ihr die Angaben abgleichen könnt, ohne
+          zwischen den Apps zu wechseln. Bleibt auf dem Gerät.
+        </p>
+        <input type="file" id="import-bild" accept="image/*">
+        <div id="bild-vorschau" class="bild-vorschau" hidden>
+          <img id="bild-anzeige" alt="Screenshot der Anfrage">
+          <label class="auswahl bild-option">
+            <input type="checkbox" id="bild-ins-pdf">
+            <span class="auswahl-inhalt">
+              <span class="auswahl-titel">Screenshot ins PDF aufnehmen</span>
+              <span class="auswahl-text">
+                Nur für eigene Unterlagen. Die Mail enthält interne
+                Einordnungen – dieses PDF dann nicht an den Kunden geben.
+              </span>
+            </span>
+          </label>
+          <button type="button" class="knopf knopf-flach" id="bild-entfernen">
+            Screenshot entfernen
+          </button>
+        </div>
+      </div>
+    </div>
+  </details>
+
   <form id="rechner-formular" novalidate>
 
     <!-- ---------------------------------------------------------------
@@ -162,16 +216,6 @@
         </div>
 
         <div class="feld">
-          <label for="volumen">Zu entsorgendes Volumen in m³</label>
-          <p class="hinweis">
-            Grob schätzen: ein voller Anhänger sind etwa 4 m³.
-            Leer lassen, wenn nichts weggefahren werden muss.
-          </p>
-          <input type="number" id="volumen" name="volumen"
-                 inputmode="decimal" min="0" max="200" step="0.5" placeholder="z. B. 3">
-        </div>
-
-        <div class="feld">
           <label for="material">Materialkosten in €</label>
           <p class="hinweis">
             Was ihr einkaufen müsst (Holz, Schrauben, Beton …).
@@ -183,6 +227,13 @@
       </div>
 
       <!-- ===== gilt für alle Auftragsarten ===== -->
+      <div class="feld">
+        <label for="volumen">Zu entsorgendes Volumen in m³</label>
+        <p class="hinweis" id="volumen-hinweis"></p>
+        <input type="number" id="volumen" name="volumen"
+               inputmode="decimal" min="0" max="500" step="0.5" placeholder="z. B. 18">
+      </div>
+
       <div class="feld">
         <label for="personen">Anzahl Personen</label>
         <p class="hinweis">Wer ist vor Ort? Beeinflusst die Zeitplanung</p>
@@ -345,6 +396,7 @@
   <section class="karte ergebnis" id="ergebnis" hidden aria-live="polite">
     <h2>Ergebnis</h2>
     <p class="ergebnis-art" id="ergebnis-art">–</p>
+    <p class="ergebnis-referenz" id="ergebnis-referenz" hidden></p>
 
     <p class="preis-label">Das sagen wir dem Kunden</p>
     <p class="preis" id="preis-anzeige">–</p>
@@ -389,6 +441,7 @@
 <!-- jsPDF über CDN – wird nur für die PDF-Erzeugung gebraucht -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 <script src="js/pricing.js" defer></script>
+<script src="js/import.js" defer></script>
 <script src="js/pdf.js" defer></script>
 <script src="js/app.js" defer></script>
 </body>

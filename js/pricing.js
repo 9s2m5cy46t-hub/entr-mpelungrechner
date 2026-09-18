@@ -119,6 +119,13 @@ const PREISE = {
 
     // Zuschlag auf die Personenstunden, wenn kein Aufzug vorhanden ist
     zusatzstundenOhneAufzug: 0.5,
+
+    // Nur für den Import aus der Website-Anfrage: dort steht die Zahl der
+    // Zimmer, aber keine Wohnfläche. Grobe Umrechnung, damit das Formular
+    // nicht leer bleibt — die Fläche ist danach IMMER zu prüfen.
+    // 2 Zimmer ergeben damit 50 m², was für eine Zweizimmerwohnung
+    // eher am unteren Rand liegt.
+    quadratmeterProZimmer: 25,
   },
 
   /* --- Nur Aufträge auf Stundenbasis (Abbruch, Bau, Sonstiges) ------------ */
@@ -326,6 +333,7 @@ function berechnePreis(eingaben) {
 
   let arbeitsstunden = 0;   // Personenstunden vor Ort, ohne Fahrten
   let volumen = 0;          // zu entsorgendes Volumen in m³
+  let volumenHerkunft = 'angegeben';   // "angegeben" oder "geschätzt"
 
   if (modell === 'flaeche') {
     /* ---------- Entrümpelung --------------------------------------------- */
@@ -355,7 +363,16 @@ function berechnePreis(eingaben) {
     arbeitsstunden = (wohnflaeche / e.quadratmeterProStunde) * faktor;
     if (!eingaben.aufzug) arbeitsstunden += e.zusatzstundenOhneAufzug;
 
-    volumen = wohnflaeche * e.kubikmeterProQuadratmeter * faktor;
+    // Aus der Wohnfläche geschätzt — es sei denn, es ist eins angegeben
+    // (z. B. übernommen aus der Website-Anfrage).
+    const angegeben = Math.max(0, Number(eingaben.volumen) || 0);
+    if (angegeben > 0) {
+      volumen = angegeben;
+      volumenHerkunft = 'angegeben';
+    } else {
+      volumen = wohnflaeche * e.kubikmeterProQuadratmeter * faktor;
+      volumenHerkunft = 'geschätzt';
+    }
 
   } else {
     /* ---------- Stundenauftrag (Abbruch, Bau, Sonstiges) ----------------- */
@@ -390,6 +407,7 @@ function berechnePreis(eingaben) {
     }
 
     volumen = Math.max(0, Number(eingaben.volumen) || 0);
+    volumenHerkunft = 'angegeben';
   }
 
   /* ---------- Transport zur Entsorgung ------------------------------------ */
@@ -470,6 +488,7 @@ function berechnePreis(eingaben) {
     zeitslot: zeitslot,
     zeitslotText: formatZeitslot(zeitslot),
     volumen: volumen,
+    volumenHerkunft: volumenHerkunft,
     fahrten: fahrten,
     zone: zoneKey,
     positionen: positionen,
