@@ -51,6 +51,59 @@ Entsorgungsposten. Kundendaten sind nie Pflicht – die braucht nur das PDF.
 `AUFTRAGSARTEN` ergänzen und im Dropdown in `index.html` eine `<option>`.
 Nutzt sie das Modell `stunden`, ist an der Rechenlogik nichts zu ändern.
 
+## Anfrage aus der Website übernehmen
+
+Oben auf der Seite die Karte „Anfrage aus der Website übernehmen"
+aufklappen, den **Text** der Benachrichtigungsmail einfügen, auf
+„Formular ausfüllen" tippen. Übernommen werden Anfrage-Nummer, Name,
+Telefon, Ort (samt Anfahrtszone), Auftragsart, Zimmer bzw. Wohnfläche,
+Füllgrad, Etage, Abfallarten und das Volumen.
+
+Danach steht ein Bericht in zwei Teilen: **Übernommen** und **Bitte
+prüfen**. Die ausgefüllten Felder sind braun hervorgehoben. Alles bleibt
+änderbar – der Import ist eine Vorbelegung, keine Wahrheit.
+
+**Warum der Text und nicht der Screenshot:** Ein Bild müsste per
+Texterkennung gelesen werden. Auf dunklen Handy-Screenshots verwechselt
+die 0 mit dem O und die 5 mit dem S – bei einer Telefonnummer oder
+„10–18 m³" sind falsche Zahlen schlimmer als gar keine, und die 15 MB
+Sprachdaten kämen obendrauf. Aus dem Text lässt sich alles exakt lesen,
+ohne jede Bibliothek.
+
+Der Screenshot kann trotzdem angehängt werden: er wird auf dem Bildschirm
+angezeigt, damit man die Angaben abgleichen kann, ohne zwischen den Apps
+zu wechseln. Ins PDF kommt er nur, wenn das Häkchen gesetzt ist – dann als
+eigene, rot beschriftete Seite. Grund: die Mail enthält interne
+Einordnungen („ALLEIN MACHBAR", „eigener Container nötig?"), die kein
+Kunde sehen soll. Ein PDF mit Screenshot ist für die eigene Ablage.
+
+### Ortsnamen ergänzen
+
+Die Zuordnung Ort → Zone steht in `js/import.js` in `ORT_ZONEN`. Was dort
+nicht steht, wird **nicht geraten** – das Werkzeug meldet stattdessen, dass
+die Anfahrt selbst gewählt werden muss. Neue Orte einfach ergänzen:
+
+```js
+const ORT_ZONEN = {
+  'stöckheim': 'zone1',
+  'wolfenbüttel': 'zone3',
+  // ...
+};
+```
+
+### Was der Import nicht kann
+
+- **Die Wohnfläche fehlt in der Mail.** Dort stehen nur Zimmer. Aus
+  2 Zimmern werden grob 50 m² geschätzt (`quadratmeterProZimmer`, 25 m²)
+  und ausdrücklich als zu prüfen gemeldet. Diese Zahl bestimmt bei der
+  Entrümpelung den Arbeitsanteil – also korrigieren, sobald ihr die Wohnung
+  gesehen habt.
+- **Volumenspannen werden nach oben gerundet.** Aus „etwa 10–18 m³" wird
+  18 m³. Zu wenig kalkulierte Fahrten kosten euch sicher Geld, zu viele
+  kosten den Auftrag nur vielleicht.
+- **Die Anhänge der Anfrage (Fotos) kann das Werkzeug nicht sehen.** Es
+  weist nur darauf hin, dass es welche gibt.
+
 ## GitHub Pages aktivieren
 
 1. Im Repository oben auf **Settings**, links auf **Pages**.
@@ -79,6 +132,7 @@ python3 -m http.server 8000    # dann http://localhost:8000 öffnen
 | `index.html` | Formular und Seitenaufbau |
 | `css/styles.css` | Optik: mobile-first, große Schrift, Grün/Erdtöne |
 | `js/pricing.js` | **Alle Preise, Auftragsarten und Rechenlogik** |
+| `js/import.js` | Anfrage aus der Website-Mail lesen, Ortsnamen zu Zonen |
 | `js/app.js` | Formular auslesen, prüfen, Ergebnis anzeigen |
 | `js/pdf.js` | PDF-Zusammenfassung erzeugen (jsPDF) |
 | `.nojekyll` | Nötig für GitHub Pages |
