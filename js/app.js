@@ -21,6 +21,8 @@
   const zoneAuswahl = document.getElementById('zone');
   const feldKilometer = document.getElementById('feld-kilometer');
   const volumenHinweis = document.getElementById('volumen-hinweis');
+  const dauerFeld = document.getElementById('dauer');
+  const gartenKasten = document.getElementById('garten-schaetzung');
   const ergebnisReferenz = document.getElementById('ergebnis-referenz');
   const importKarte = document.getElementById('import-karte');
   const importText = document.getElementById('import-text');
@@ -40,6 +42,13 @@
   // Bleibt nur im Arbeitsspeicher — nichts wird gespeichert oder gesendet.
   let letzteEingaben = null;
   let letztesErgebnis = null;
+
+  /*
+   * Letzter Stundenvorschlag für den Garten. Daran erkennt das Werkzeug, ob
+   * im Feld "Dauer" noch sein eigener Vorschlag steht oder eine Zahl, die
+   * jemand selbst eingetragen hat — eine eigene Zahl wird nie überschrieben.
+   */
+  let letzterVorschlag = null;
 
   // Aus der Website-Anfrage übernommen. Nur im Arbeitsspeicher.
   let referenz = '';
@@ -70,8 +79,18 @@
 
   function zeigePassendeFelder() {
     const modell = aktuellesModell();
+    const art = artAuswahl.value;
     document.querySelectorAll('[data-modell]').forEach(function (gruppe) {
       gruppe.hidden = gruppe.dataset.modell !== modell;
+    });
+    // Felder, die nur zu einer bestimmten Auftragsart gehören — bisher nur
+    // der Gartenblock. Umgekehrt data-art-nicht: Material gibt es im Garten
+    // nicht zu kaufen.
+    document.querySelectorAll('[data-art]').forEach(function (gruppe) {
+      gruppe.hidden = gruppe.dataset.art !== art;
+    });
+    document.querySelectorAll('[data-art-nicht]').forEach(function (gruppe) {
+      gruppe.hidden = gruppe.dataset.artNicht === art;
     });
     artHinweis.textContent = ART_HINWEISE[artAuswahl.value] || '';
     volumenHinweis.textContent = modell === 'flaeche'
@@ -82,6 +101,90 @@
       const feld = document.getElementById(name);
       if (feld && feld.closest('[data-modell]').hidden) zeigeFehler(name, '');
     });
+    aktualisiereSchaetzung(true);
+  }
+
+  /* ---------------------------------------------------------------------------
+   * Stundenvorschlag für Gartenaufträge
+   * -----------------------------------------------------------------------------
+   * Füllt das Feld "Dauer vor Ort" aus den Gartenangaben und schreibt in den
+   * Kasten darüber, woraus der Vorschlag entstanden ist.
+   *
+   * Drei Fälle, und keiner davon rät:
+   *   - noch keine Arbeit angekreuzt  → Kasten bleibt leer
+   *   - Zahlen fehlen in PREISE.garten → Kasten sagt welche, Dauer selbst eintragen
+   *   - alles da                       → Vorschlag steht im Feld, überschreibbar
+   *
+   * Eine selbst eingetragene Dauer wird NIE überschrieben. Der Vorschlag
+   * steht dann nur im Kasten, damit man beides nebeneinander sieht.
+   * ------------------------------------------------------------------------ */
+  function kastenFuellen(titel, zeilen, klasse) {
+    gartenKasten.replaceChildren();
+    const block = berichtAbschnitt(titel, zeilen, klasse);
+    if (block) gartenKasten.append(block);
+    gartenKasten.hidden = !block;
+  }
+
+  function aktualisiereSchaetzung(darfSchreiben) {
+    if (!gartenKasten) return;
+
+    if (artAuswahl.value !== 'garten') {
+      gartenKasten.hidden = true;
+      gartenKasten.replaceChildren();
+      return;
+    }
+
+    const daten = new FormData(formular);
+    const schaetzung = schaetzeGartenstunden({
+      gartenArbeiten: daten.getAll('gartenArbeiten'),
+      gartenGroesse: daten.get('gartenGroesse'),
+      gartenZustand: daten.get('gartenZustand'),
+    });
+
+    if (schaetzung.ohneArbeiten) {
+      kastenFuellen('Dauer wird vorgeschlagen',
+        ['Kreuzt oben an, was gemacht werden soll – dann steht hier ein Vorschlag für die Dauer.'],
+        'bericht-ok');
+      return;
+    }
+
+    if (!schaetzung.stunden) {
+      kastenFuellen('Kein Vorschlag möglich',
+        schaetzung.fehlt.concat([
+          'Fehlt in js/pricing.js unter PREISE.garten. Bis dahin die Dauer unten selbst schätzen – gerechnet wird trotzdem normal.',
+        ]),
+        'bericht-warnung');
+      return;
+    }
+
+    const vorhanden = dauerFeld.value.trim();
+    const eigeneZahl = vorhanden !== '' && Number(vorhanden) !== letzterVorschlag;
+
+    /*
+     * Während des Tippens wird nichts geschrieben. Sonst springt der
+     * Vorschlag in das Feld zurück, sobald man es leert, um eine eigene
+     * Zahl einzugeben — und man tippt hinter eine fremde Zahl.
+     */
+    if (eigeneZahl || !darfSchreiben) {
+      kastenFuellen('Vorschlag: ' + formatStunden(schaetzung.stunden),
+        schaetzung.teile.concat([
+          vorhanden === ''
+            ? 'Das Feld unten ist leer – einmal hineinklicken und wieder heraus, dann steht der Vorschlag darin.'
+            : 'Im Feld unten steht ' + formatStunden(Number(vorhanden)) +
+                ' – eure eigene Zahl bleibt stehen. Zum Übernehmen das Feld leeren und herausklicken.',
+        ]),
+        'bericht-ok');
+      return;
+    }
+
+    dauerFeld.value = String(schaetzung.stunden);
+    dauerFeld.classList.add('uebernommen');
+    letzterVorschlag = schaetzung.stunden;
+    zeigeFehler('dauer', '');
+
+    kastenFuellen('Vorschlag: ' + formatStunden(schaetzung.stunden),
+      schaetzung.teile.concat(['Steht unten im Feld – bitte prüfen und notfalls überschreiben.']),
+      'bericht-ok');
   }
 
   /* ---------------------------------------------------------------------------
@@ -97,6 +200,10 @@
       zimmer: Number(daten.get('zimmer')),
       vermuellungsgrad: daten.get('vermuellungsgrad'),
       kellerabteil: daten.get('kellerabteil') === 'ja',
+      // nur Gartenarbeiten — füttern die Stundenschätzung
+      gartenArbeiten: daten.getAll('gartenArbeiten'),
+      gartenGroesse: daten.get('gartenGroesse'),
+      gartenZustand: daten.get('gartenZustand'),
       // Stundenauftrag
       dauer: Number(daten.get('dauer')),
       erschwernis: daten.get('erschwernis'),
@@ -258,9 +365,36 @@
   });
 
   artAuswahl.addEventListener('change', function () {
+    // Beim Wechseln der Auftragsart ist ein alter Vorschlag nichts mehr wert
+    letzterVorschlag = null;
     zeigePassendeFelder();
     ergebnisBereich.hidden = true;
     letztesErgebnis = null;
+  });
+
+  /* ---------------------------------------------------------------------------
+   * Gartenangaben geändert → Dauer neu vorschlagen
+   * ------------------------------------------------------------------------ */
+  formular.addEventListener('change', function (event) {
+    const name = event.target && event.target.name;
+    if (name === 'gartenArbeiten' || name === 'gartenGroesse' || name === 'gartenZustand') {
+      aktualisiereSchaetzung(true);
+    }
+  });
+
+  /*
+   * Wer selbst in die Dauer tippt, hat das letzte Wort: die Markierung
+   * "übernommen" verschwindet, und der Kasten stellt den Vorschlag nur noch
+   * daneben, statt die Zahl zu ersetzen.
+   */
+  dauerFeld.addEventListener('input', function () {
+    dauerFeld.classList.remove('uebernommen');
+    if (artAuswahl.value === 'garten') aktualisiereSchaetzung(false);
+  });
+
+  // Leeres Feld verlassen = Vorschlag darf wieder hinein
+  dauerFeld.addEventListener('blur', function () {
+    if (artAuswahl.value === 'garten') aktualisiereSchaetzung(true);
   });
 
   /* ---------------------------------------------------------------------------
@@ -450,6 +584,7 @@
       f.classList.remove('uebernommen');
     });
     ['wohnflaeche', 'zimmer', 'dauer', 'kilometer'].forEach(function (n) { zeigeFehler(n, ''); });
+    letzterVorschlag = null;
     zeigePassendeFelder();
     zeigeKilometerfeld();
     window.scrollTo({ top: 0, behavior: 'smooth' });
