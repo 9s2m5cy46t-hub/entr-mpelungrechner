@@ -40,6 +40,7 @@ einen Server gesendet.
 | Art | Rechenweg | Pflichtfelder |
 |---|---|---|
 | **Entrümpelung** | Wohnfläche × Preis pro m², mal Vermüllungsgrad | Wohnfläche, Zimmer |
+| **Gartenarbeiten** | Arbeitszeit × Stundensatz, mal Erschwernis | Dauer vor Ort |
 | **Abbruch / Rückbau** | Arbeitszeit × Stundensatz, mal Erschwernis | Dauer vor Ort |
 | **Bau / Montage** | wie Abbruch, zusätzlich Material | Dauer vor Ort |
 | **Sonstiges** | wie Abbruch | Dauer vor Ort |
@@ -164,9 +165,9 @@ const PREISE = {
     materialAufschlag: 0.1,        // 10 % für Beschaffung und Transport
   },
 
-  entsorgung: {
-    sperrmuell: 40, elektroschrott: 30, sondermuell: 60,
-    bauschutt: 250, altholz: 120,
+  abfallarten: {
+    sperrmuell: 0, elektroschrott: 0, sondermuell: 60,
+    bauschutt: 0, altholz: 0, gruenschnitt: 0,
   },
 };
 ```
@@ -278,6 +279,9 @@ nicht weiterhilft.
   zwei echten Entrümpelungen die tatsächliche Zahl der Fahrten mit der
   berechneten vergleichen und nachziehen. Diese Zahl bewegt den Preis stärker
   als jede andere.
+- **Grünschnitt** (`abfallarten.gruenschnitt`, 0 €) – steht auf 0, weil viele
+  Höfe Grünschnitt kostenlos annehmen. Nachfragen: Gilt das auch für euch als
+  Gewerbe? Wenn nicht, Betrag eintragen.
 - **Anlieferungspreis** (`transport.preisProAnlieferung`, 15 €) – prüfen, ob
   der Hof euch als Gewerbe anders einstuft als privat, und ob Bauschutt oder
   gemischte Ladungen mehr kosten.

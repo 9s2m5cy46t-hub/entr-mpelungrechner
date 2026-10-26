@@ -91,6 +91,7 @@
         <label for="auftragsart">Art des Auftrags</label>
         <select id="auftragsart" name="auftragsart">
           <option value="entruempelung" selected>Entrümpelung</option>
+          <option value="garten">Gartenarbeiten</option>
           <option value="abbruch">Abbruch / Rückbau</option>
           <option value="bau">Bau / Montage</option>
           <option value="sonstiges">Sonstiges</option>
@@ -104,7 +105,7 @@
           Kurz in eigenen Worten – steht später so im PDF
         </p>
         <textarea id="beschreibung" name="beschreibung" rows="3"
-          placeholder="z. B. Treppe zum Dachboden bauen, alte Unterkonstruktion abreißen und entsorgen"></textarea>
+          placeholder="z. B. Hecke auf 1,50 m kürzen und Rasen mähen, Grünschnitt mitnehmen"></textarea>
       </div>
     </section>
 
@@ -341,6 +342,13 @@
             <span class="auswahl-inhalt">
               <span class="auswahl-titel">Altholz / Bauholz</span>
               <span class="auswahl-text">Alte Unterkonstruktion, Balken, Bretter</span>
+            </span>
+          </label>
+          <label class="auswahl">
+            <input type="checkbox" name="abfallarten" value="gruenschnitt">
+            <span class="auswahl-inhalt">
+              <span class="auswahl-titel">Grünschnitt</span>
+              <span class="auswahl-text">Rasenschnitt, Hecke, Laub, Äste</span>
             </span>
           </label>
         </div>

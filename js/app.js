@@ -48,6 +48,7 @@
   // Kurzer Hinweis unter dem Dropdown, damit klar ist, wie gerechnet wird
   const ART_HINWEISE = {
     entruempelung: 'Preis nach Wohnfläche und Vermüllungsgrad.',
+    garten: 'Preis nach geschätzter Arbeitszeit, plus Grünschnitt.',
     abbruch: 'Preis nach geschätzter Arbeitszeit und Entsorgung.',
     bau: 'Preis nach geschätzter Arbeitszeit plus Material.',
     sonstiges: 'Preis nach geschätzter Arbeitszeit.',

@@ -158,6 +158,7 @@ const PREISE = {
     sondermuell: 60,     // gesonderte Annahmestelle, nicht mit auf den Anhänger
     bauschutt: 0,        // prüfen: wird Bauschutt bei euch extra berechnet?
     altholz: 0,
+    gruenschnitt: 0,     // prüfen: nimmt euch der Hof Grünschnitt kostenlos ab?
   },
 };
 
@@ -174,6 +175,7 @@ const PREISE = {
  * -------------------------------------------------------------------------- */
 const AUFTRAGSARTEN = {
   entruempelung: { label: 'Entrümpelung', modell: 'flaeche' },
+  garten: { label: 'Gartenarbeiten', modell: 'stunden' },
   abbruch: { label: 'Abbruch / Rückbau', modell: 'stunden' },
   bau: { label: 'Bau / Montage', modell: 'stunden' },
   sonstiges: { label: 'Sonstiges', modell: 'stunden' },
@@ -205,6 +207,7 @@ const LABELS = {
     sondermuell: 'Sondermüll (Farben, Chemikalien)',
     bauschutt: 'Bauschutt-Container',
     altholz: 'Altholz / Bauholz',
+    gruenschnitt: 'Grünschnitt',
   },
   etage: {
     eg: 'Erdgeschoss',
