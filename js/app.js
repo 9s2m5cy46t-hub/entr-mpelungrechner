@@ -92,6 +92,16 @@
     document.querySelectorAll('[data-art-nicht]').forEach(function (gruppe) {
       gruppe.hidden = gruppe.dataset.artNicht === art;
     });
+    /*
+     * Ein ausgeblendetes Feld darf nicht weiterrechnen. Im Garten gibt es
+     * keine Etage, also zurück aufs Erdgeschoss — sonst schlägt ein "3.
+     * Etage ohne Aufzug" aus einer vorigen Kalkulation unsichtbar 45 % auf
+     * die Arbeit.
+     */
+    if (art === 'garten') {
+      const etage = document.getElementById('etage');
+      if (etage) etage.value = 'eg';
+    }
     artHinweis.textContent = ART_HINWEISE[artAuswahl.value] || '';
     volumenHinweis.textContent = modell === 'flaeche'
       ? 'Leer lassen – wird aus der Wohnfläche geschätzt. Nur ausfüllen, wenn ihr es besser weißt (z. B. aus der Website-Anfrage).'
@@ -485,11 +495,23 @@
 
     if (f.vermuellungsgrad) setzeRadio('vermuellungsgrad', f.vermuellungsgrad);
     if (typeof f.aufzug === 'boolean') setzeRadio('aufzug', f.aufzug ? 'ja' : 'nein');
+    if (f.gartenGroesse) setzeRadio('gartenGroesse', f.gartenGroesse);
+    if (f.gartenZustand) setzeRadio('gartenZustand', f.gartenZustand);
+    if (f.gartenArbeiten) {
+      document.querySelectorAll('input[name="gartenArbeiten"]').forEach(function (box) {
+        box.checked = f.gartenArbeiten.indexOf(box.value) !== -1;
+      });
+    }
     if (f.abfallarten) {
       document.querySelectorAll('input[name="abfallarten"]').forEach(function (box) {
         box.checked = f.abfallarten.indexOf(box.value) !== -1;
       });
     }
+
+    // Ein Vorschlag aus der vorigen Anfrage gilt nicht mehr
+    letzterVorschlag = null;
+    dauerFeld.value = '';
+    aktualisiereSchaetzung(true);
 
     const uebernommen = berichtAbschnitt('Übernommen', ergebnis.notizen, 'bericht-ok');
     const pruefen = berichtAbschnitt('Bitte prüfen', ergebnis.warnungen, 'bericht-warnung');

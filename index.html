@@ -392,7 +392,11 @@
         <p class="fehler" data-fehler-fuer="kilometer" hidden></p>
       </div>
 
-      <div class="feld">
+      <!-- Etage und Aufzug gehören nicht in einen Garten. Ausgeblendet
+           und zugleich auf Erdgeschoss zurückgesetzt (siehe app.js), damit
+           kein Etagenaufschlag aus einer früheren Eingabe unsichtbar
+           weiterwirkt. -->
+      <div class="feld" data-art-nicht="garten">
         <label for="etage">Etage</label>
         <select id="etage" name="etage">
           <option value="eg" selected>Erdgeschoss</option>
@@ -405,7 +409,7 @@
         </select>
       </div>
 
-      <div class="feld">
+      <div class="feld" data-art-nicht="garten">
         <span class="label-block">Aufzug vorhanden?</span>
         <div class="schalter">
           <label class="schalter-option">
