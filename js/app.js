@@ -149,6 +149,7 @@
       gartenArbeiten: daten.getAll('gartenArbeiten'),
       gartenGroesse: daten.get('gartenGroesse'),
       gartenZustand: daten.get('gartenZustand'),
+      personen: Number(daten.get('personen')) || 1,
     });
 
     if (schaetzung.ohneArbeiten) {
@@ -387,7 +388,8 @@
    * ------------------------------------------------------------------------ */
   formular.addEventListener('change', function (event) {
     const name = event.target && event.target.name;
-    if (name === 'gartenArbeiten' || name === 'gartenGroesse' || name === 'gartenZustand') {
+    if (name === 'gartenArbeiten' || name === 'gartenGroesse' ||
+        name === 'gartenZustand' || name === 'personen') {
       aktualisiereSchaetzung(true);
     }
   });

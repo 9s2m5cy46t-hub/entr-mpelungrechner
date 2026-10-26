@@ -314,9 +314,16 @@ function leseAnfrage(mailtext) {
   if (gruenMit) {
     felder.abfallarten = (felder.abfallarten || []).concat(['gruenschnitt']);
     notizen.push('Grünschnitt wird mitgenommen');
-    warnungen.push('Volumen des Grünschnitts steht nicht in der Mail – bitte ' +
-      'schätzen (ein voller Anhänger sind etwa ' +
-      PREISE.transport.kapazitaetProFahrt + ' m³). Davon hängen die Fahrten ab.');
+    const anhaenger = PREISE.transport.kapazitaetProFahrt + ' m³';
+    // Steht in der Mail überhaupt ein Volumen? Bei einer reinen
+    // Gartenanfrage nie – bei "Entrümpelung + Garten" gilt es dem Hausrat.
+    warnungen.push(hole('volumen').length || hole('menge').length
+      ? 'Grünschnitt kommt dazu. Das Volumen aus der Mail gilt dem Hausrat – ' +
+          'bitte den Grünschnitt dazurechnen (ein voller Anhänger sind etwa ' +
+          anhaenger + ').'
+      : 'Volumen des Grünschnitts steht nicht in der Mail – bitte schätzen ' +
+          '(ein voller Anhänger sind etwa ' + anhaenger + '). ' +
+          'Davon hängen die Fahrten ab.');
   }
 
   /* --- Größe: Wohnfläche oder Zimmer ------------------------------------- */
@@ -399,9 +406,11 @@ function leseAnfrage(mailtext) {
   /* --- Beschreibung für das PDF ------------------------------------------ */
   const teile = [];
   hole('was').forEach(function (w) { teile.push(w); });
-  hole('was im garten').forEach(function (w) { teile.push(w); });
-  // Die eigene Beschreibung des Kunden steht wörtlich im PDF — sie ist
-  // oft genauer als jede Auswahl.
+  /*
+   * Die angekreuzten Gartenarbeiten stehen im PDF schon als eigene Zeilen —
+   * hier würden sie den Text nur zustellen. Was hier hingehört, ist die
+   * eigene Beschreibung des Kunden: sie ist oft genauer als jede Auswahl.
+   */
   hole('beschreibung').forEach(function (w) { teile.push(w); });
   if (zimmer) teile.push(zimmer + ' Zimmer');
   hole('besonderes').forEach(function (w) { teile.push('Besonderes: ' + w); });

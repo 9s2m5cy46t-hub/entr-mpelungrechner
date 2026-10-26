@@ -167,7 +167,9 @@ const PREISE = {
    * nachziehen, wenn die geplante Zeit regelmäßig nicht reicht.
    */
   garten: {
-    // Stunden für EINE Person, bevor Größe und Zustand wirken.
+    // Personenstunden für die Arbeit, bevor Größe und Zustand wirken —
+    // also wie lange EINE Person dafür braucht. Wie viele Leute hinfahren,
+    // steht weiter unten im Formular und wird davon abgezogen.
     basisstunden: {
       rasen: null,
       hecke: null,
@@ -358,10 +360,20 @@ function formatStunden(stunden) {
  * berechnePreis() ganz normal weiter — an der Preisrechnung ändert sich
  * nichts, weder für Garten noch für die anderen Auftragsarten.
  *
- *   Summe der Basisstunden der angekreuzten Arbeiten
+ *   Summe der Basisstunden der angekreuzten Arbeiten   (Personenstunden)
  *     × Faktor Gartengröße
  *     × Faktor Zustand
+ *     ÷ Anzahl Personen
  *     = Dauer vor Ort, auf die nächste halbe Stunde aufgerundet
+ *
+ * Das Teilen durch die Personen ist wichtig: Die Basisstunden sind die
+ * Arbeit, die anfällt — "Dauer vor Ort" ist dagegen die Zeit, die man dort
+ * steht. Zwei Leute sind halb so lange da. Ohne das Teilen würde
+ * berechnePreis() die Arbeit anschließend noch einmal mit den Personen
+ * multiplizieren und damit doppelt zählen.
+ *
+ * Dass zwei Leute genau doppelt so schnell sind, ist eine Vereinfachung —
+ * aber dieselbe, mit der das Werkzeug auch bei Abbruch und Bau rechnet.
  *
  * Rückgabe:
  *   stunden   Zahl, oder null wenn nicht geschätzt werden kann
@@ -413,9 +425,11 @@ function schaetzeGartenstunden(eingaben) {
 
   const faktorGroesse = g.faktorGroesse[groesseKey];
   const faktorZustand = g.faktorZustand[zustandKey];
+  const personen = Math.max(1, Number(eingaben.personen) || 1);
+  const personenstunden = summe * faktorGroesse * faktorZustand;
 
   teile.push(arbeiten.length + (arbeiten.length === 1 ? ' Arbeit' : ' Arbeiten') +
-    ' \u2192 ' + formatStunden(summe));
+    ' \u2192 ' + formatStunden(summe) + ' Arbeit');
   if (faktorGroesse !== 1) {
     teile.push(LABELS.gartenGroesse[groesseKey] + ' (\u00d7' +
       String(faktorGroesse).replace('.', ',') + ')');
@@ -425,8 +439,16 @@ function schaetzeGartenstunden(eingaben) {
       String(faktorZustand).replace('.', ',') + ')');
   }
 
+  if (personenstunden !== summe) {
+    teile.push('zusammen ' + formatStunden(personenstunden) + ' Arbeit');
+  }
+  if (personen > 1) {
+    teile.push('verteilt auf ' + personen + ' Personen');
+  }
+
   return {
-    stunden: aufHalbeStundenAufrunden(summe * faktorGroesse * faktorZustand),
+    stunden: aufHalbeStundenAufrunden(personenstunden / personen),
+    personenstunden: personenstunden,
     fehlt: [],
     teile: teile,
   };
