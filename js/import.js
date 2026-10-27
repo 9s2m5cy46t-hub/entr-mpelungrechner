@@ -43,6 +43,21 @@ const ORT_ZONEN = {
   'flechtorf': 'zone3', 'meine': 'zone3', 'edemissen': 'zone3',
 };
 
+/**
+ * Die Zone zu einem Ortsnamen – oder null, wenn er nicht in der Liste steht.
+ * Wird NICHT geraten: ein unbekannter Ort führt zu einer Warnung, nicht zu
+ * einer stillen Annahme.
+ */
+function zoneFuerOrt(ort) {
+  const schluessel = ort.toLowerCase().replace(/[^a-zäöüß]/g, '');
+  if (ORT_ZONEN[schluessel]) return ORT_ZONEN[schluessel];
+  // auch Teiltreffer, z. B. "38124 Braunschweig-Stöckheim"
+  const gefunden = Object.keys(ORT_ZONEN).find(function (o) {
+    return ort.toLowerCase().indexOf(o) !== -1;
+  });
+  return gefunden ? ORT_ZONEN[gefunden] : null;
+}
+
 /* -----------------------------------------------------------------------------
  * Freitext auf Auswahlwerte abbilden
  * -------------------------------------------------------------------------- */
@@ -122,12 +137,53 @@ function erkenneVermuellungsgrad(text) {
 /** "Erdgeschoss" -> eg, "3. Etage" -> "3", "Dachgeschoss" -> ... */
 function erkenneEtage(text) {
   const t = text.toLowerCase();
-  if (/erdgeschoss|\beg\b|parterre/.test(t)) return 'eg';
-  if (/höher|hoher|dachgeschoss|\bdg\b|[6-9]\s*\./.test(t)) return 'hoeher';
+
+  /*
+   * Zuerst die vier Antworten, die der Chat tatsächlich schickt. Sie sind
+   * Spannen ("1. oder 2. Stock"), keine Etagenzahlen — deshalb wird hier
+   * übersetzt und gesagt, womit gerechnet wurde:
+   *
+   *   "1. oder 2. Stock, ohne Aufzug"    -> 2  (die teurere der beiden)
+   *   "3. Stock oder höher, ohne Aufzug" -> 3  (die GÜNSTIGSTE der Spanne,
+   *                                             nach oben offen -> Warnung)
+   *
+   * Warum bei "3. Stock oder höher" nicht 'hoeher': Das sind 6 Etagen und
+   * damit +90 % Aufschlag auf die Arbeit. Die Antwort kann aber auch den
+   * dritten Stock meinen (+45 %). Ein zu hoher Preis kostet den Auftrag,
+   * ohne dass jemand nachfragt – also die untere Kante nehmen und vor Ort
+   * prüfen.
+   */
+  if (/1\.\s*oder\s*2\.\s*stock/.test(t)) {
+    return { etage: '2', hinweis: '1. oder 2. Stock, mit 2 gerechnet' };
+  }
+  if (/3\.\s*stock\s*oder\s*höher|3\.\s*stock\s*oder\s*hoher/.test(t)) {
+    return { etage: '3', warnung: 'mindestens 3. Etage, vor Ort prüfen' };
+  }
+  if (/mit\s*aufzug/.test(t)) {
+    return { etage: 'eg', aufzug: true, hinweis: 'Mit Aufzug – kein Etagenaufschlag' };
+  }
+  if (/erdgeschoss|\beg\b|parterre/.test(t)) {
+    return { etage: 'eg' };
+  }
+
+  /* --- Rückfall für Texte, die nicht aus dem Chat stammen --------------- */
+  if (/höher|hoher|dachgeschoss|\bdg\b|[6-9]\s*\./.test(t)) return { etage: 'hoeher' };
   const treffer = t.match(/([1-5])\s*\./);
-  if (treffer) return treffer[1];
+  if (treffer) return { etage: treffer[1] };
   const zahl = t.match(/\b([1-5])\b/);
-  if (zahl) return zahl[1];
+  if (zahl) return { etage: zahl[1] };
+  return null;
+}
+
+/**
+ * Zeile "Leute: ALLEIN MACHBAR – ..." oder "Leute: ZU ZWEIT – ...".
+ * Die Website schätzt das selbst; wie viele hinfahren, bestimmt bei uns
+ * die Fahrzeit und die Dauer vor Ort.
+ */
+function erkenneLeute(text) {
+  const t = text.trim().toUpperCase();
+  if (t.indexOf('ZU ZWEIT') === 0) return 2;
+  if (t.indexOf('ALLEIN') === 0) return 1;
   return null;
 }
 
@@ -150,9 +206,15 @@ function erkenneVolumen(text) {
     return n > 0 && n < 500;
   });
   if (!zahlen.length) return null;
-  // Bei einer Spanne die obere Grenze nehmen: zu wenig Fahrten kalkuliert
-  // kostet euch Geld, zu viele kostet den Auftrag — aber nur vielleicht.
-  return Math.max.apply(null, zahlen);
+
+  const min = Math.min.apply(null, zahlen);
+  const max = Math.max.apply(null, zahlen);
+  /*
+   * Gerechnet wird mit der MITTE, nicht mit der Obergrenze: Die Obergrenze
+   * ist das "bis" der Kundenspanne und steht ohnehin daneben. Ein Richtwert
+   * an der Obergrenze wäre im Schnitt zu teuer.
+   */
+  return { min: min, max: max, mitte: (min + max) / 2 };
 }
 
 /** "2 Zimmer" -> 2 */
@@ -167,6 +229,217 @@ function erkenneWohnflaeche(text) {
   return treffer ? Number(String(treffer[1]).replace(',', '.')) : null;
 }
 
+/* =============================================================================
+ * Strukturierter Block "RECHNER-DATEN v1"
+ * -----------------------------------------------------------------------------
+ * Wenn die Website ihn mitschickt, ist er die bessere Quelle: feste Schlüssel
+ * statt deutscher Sätze, nichts zu raten. Aufbau:
+ *
+ *   --- RECHNER-DATEN v1 ---
+ *   bereich: entruempelung
+ *   objekt: wohnung
+ *   zimmer: 3
+ *   ...
+ *   --- ENDE ---
+ *
+ * Mehrere Werte in einer Zeile mit "; " getrennt. Was die Website nicht weiß,
+ * lässt sie weg – eine fehlende Zeile heißt also "unbekannt" und wird NICHT
+ * geraten.
+ * ========================================================================== */
+
+/** Übersetzungen der Schlüssel aus dem Block in die Werte des Formulars. */
+const RD_OBJEKT = {
+  wohnung: 'entruempelung', haus: 'entruempelung', keller: 'entruempelung',
+  garage: 'entruempelung', moebel: 'entruempelung', anderes: 'entruempelung',
+};
+const RD_FUELLGRAD = { leer: 'leicht', normal: 'leicht', voll: 'stark' };
+const RD_ETAGE = {
+  eg: { etage: 'eg' },
+  '1-2': { etage: '2', hinweis: '1. oder 2. Stock, mit 2 gerechnet' },
+  '3plus': { etage: '3', warnung: 'mindestens 3. Etage, vor Ort prüfen' },
+};
+const RD_BESONDERES = {
+  elektro: 'elektroschrott',
+  bauschutt: 'bauschutt',
+  schadstoffe: 'sondermuell',
+};
+const RD_WARNUNG = {
+  schwerlast: 'Schwerlast, mindestens 2 Personen',
+  verwertbares: 'Verwertbares, bei Besichtigung gegenrechnen',
+};
+
+/**
+ * Sucht den Block und liest ihn aus. Gibt null zurück, wenn er fehlt — dann
+ * gilt der Textweg für ältere Mails.
+ */
+function leseRechnerDaten(mailtext) {
+  const treffer = mailtext.match(
+    /---\s*RECHNER-DATEN\s+v1\s*---([\s\S]*?)---\s*ENDE\s*---/i
+  );
+  if (!treffer) return null;
+
+  const zeilen = {};
+  treffer[1].split(/\r?\n/).forEach(function (zeile) {
+    const m = zeile.match(/^\s*([a-z0-9_]+)\s*:\s*(.+?)\s*$/i);
+    if (m) zeilen[m[1].toLowerCase()] = m[2];
+  });
+
+  const felder = {};
+  const notizen = ['Strukturierte Daten aus der Mail gelesen (RECHNER-DATEN v1)'];
+  const warnungen = [];
+  const liste = function (name) {
+    return (zeilen[name] || '').split(';').map(function (x) { return x.trim(); })
+      .filter(Boolean);
+  };
+
+  /* --- Bereich ---------------------------------------------------------- */
+  const bereich = (zeilen.bereich || '').toLowerCase();
+  if (bereich === 'garten') felder.auftragsart = 'garten';
+  else if (bereich === 'entruempelung' || bereich === 'beides') felder.auftragsart = 'entruempelung';
+  if (bereich === 'beides') {
+    warnungen.push('Anfrage über BEIDES – hier ist nur die Entrümpelung ' +
+      'gerechnet. Die Gartenarbeiten bitte getrennt kalkulieren.');
+  }
+  if (felder.auftragsart) notizen.push('Auftragsart: ' + AUFTRAGSARTEN[felder.auftragsart].label);
+
+  /* --- Objekt und Zimmer ------------------------------------------------ */
+  const objekt = (zeilen.objekt || '').toLowerCase();
+  if (objekt && RD_OBJEKT[objekt]) notizen.push('Objekt: ' + objekt);
+  const zimmer = Number(zeilen.zimmer);
+  if (Number.isFinite(zimmer) && zimmer > 0) {
+    felder.zimmer = zimmer;
+    notizen.push('Zimmer: ' + zimmer);
+  }
+
+  /* --- Füllgrad --------------------------------------------------------- */
+  const fuellgrad = (zeilen.fuellgrad || '').toLowerCase();
+  if (RD_FUELLGRAD[fuellgrad]) {
+    felder.vermuellungsgrad = RD_FUELLGRAD[fuellgrad];
+    notizen.push('Füllgrad: ' + LABELS.vermuellung[felder.vermuellungsgrad]);
+  } else if (fuellgrad === 'unbekannt') {
+    warnungen.push('Füllgrad unbekannt – bitte selbst wählen.');
+  }
+
+  /* --- Etage und Aufzug ------------------------------------------------- */
+  const etage = RD_ETAGE[(zeilen.etage || '').toLowerCase()];
+  if (etage) {
+    felder.etage = etage.etage;
+    notizen.push('Etage: ' + LABELS.etage[etage.etage] +
+      (etage.hinweis ? ' (' + etage.hinweis + ')' : ''));
+    if (etage.warnung) warnungen.push(etage.warnung);
+  } else if ((zeilen.etage || '').toLowerCase() === 'unbekannt') {
+    warnungen.push('Etage unbekannt – bitte nachfragen, sie bestimmt den Aufschlag.');
+  }
+
+  const aufzug = (zeilen.aufzug || '').toLowerCase();
+  if (aufzug === 'ja' || aufzug === 'nein') {
+    felder.aufzug = aufzug === 'ja';
+    notizen.push('Aufzug: ' + aufzug);
+  } else if (aufzug === 'unbekannt') {
+    warnungen.push('Aufzug unbekannt – ohne Aufzug gerechnet, bitte prüfen.');
+  }
+
+  /* --- Besonderes ------------------------------------------------------- */
+  const arten = [];
+  liste('besonderes').forEach(function (eintrag) {
+    const k = eintrag.toLowerCase();
+    if (RD_BESONDERES[k] && arten.indexOf(RD_BESONDERES[k]) === -1) arten.push(RD_BESONDERES[k]);
+    if (RD_WARNUNG[k]) warnungen.push(RD_WARNUNG[k]);
+    if (k === 'sonstiges') warnungen.push('Eigene Angabe im Feld "Besonderes" – Mailtext lesen.');
+  });
+  if (arten.length) {
+    felder.abfallarten = arten;
+    notizen.push('Entsorgung: ' + arten.map(function (a) { return LABELS.abfallarten[a]; }).join(', '));
+  }
+
+  /* --- Volumen ---------------------------------------------------------- */
+  const volumenRoh = zeilen.volumen_m3;
+  if (volumenRoh) {
+    const volumen = erkenneVolumen(volumenRoh);
+    if (volumen) {
+      felder.volumen = volumen.mitte;
+      if (volumen.max > volumen.min) {
+        felder.volumenMin = volumen.min;
+        felder.volumenMax = volumen.max;
+        notizen.push('Volumen: ' + volumen.min + '–' + volumen.max + ' m³, gerechnet mit ' +
+          volumen.mitte + ' m³ (Mitte); die Spanne bestimmt den Preis von–bis');
+      } else {
+        notizen.push('Volumen: ' + volumen.mitte + ' m³');
+      }
+    }
+  }
+
+  /* --- Personen --------------------------------------------------------- */
+  const personen = Number(zeilen.personen);
+  if (personen === 1 || personen === 2) {
+    felder.personen = personen;
+    notizen.push('Personen: ' + personen);
+  }
+
+  /* --- Garten ----------------------------------------------------------- */
+  const arbeiten = liste('garten_arbeiten').filter(function (a) {
+    return LABELS.gartenArbeiten && LABELS.gartenArbeiten[a];
+  });
+  if (arbeiten.length) {
+    felder.gartenArbeiten = arbeiten;
+    notizen.push('Gartenarbeiten: ' + arbeiten.map(function (a) {
+      return LABELS.gartenArbeiten[a];
+    }).join(', '));
+  }
+  const gGroesse = (zeilen.garten_groesse || '').toLowerCase();
+  if (LABELS.gartenGroesse && LABELS.gartenGroesse[gGroesse]) {
+    felder.gartenGroesse = gGroesse;
+    notizen.push('Gartengröße: ' + LABELS.gartenGroesse[gGroesse]);
+  } else if (gGroesse === 'unbekannt') {
+    warnungen.push('Gartengröße unbekannt – bitte selbst einordnen.');
+  }
+  const gZustand = (zeilen.garten_zustand || '').toLowerCase();
+  if (LABELS.gartenZustand && LABELS.gartenZustand[gZustand]) {
+    felder.gartenZustand = gZustand;
+    notizen.push('Zustand: ' + LABELS.gartenZustand[gZustand]);
+  } else if (gZustand === 'unbekannt') {
+    warnungen.push('Zustand des Gartens unbekannt – bitte selbst einordnen.');
+  }
+
+  const gruen = (zeilen.gruenschnitt || '').toLowerCase();
+  if (gruen === 'mitnehmen' || arbeiten.indexOf('gruenschnitt_weg') !== -1) {
+    felder.abfallarten = (felder.abfallarten || []).concat(
+      (felder.abfallarten || []).indexOf('gruenschnitt') === -1 ? ['gruenschnitt'] : []
+    );
+    notizen.push('Grünschnitt wird mitgenommen');
+    if (!felder.volumen) {
+      warnungen.push('Volumen des Grünschnitts steht nicht in der Mail – bitte ' +
+        'schätzen (ein voller Anhänger sind etwa ' +
+        PREISE.transport.kapazitaetProFahrt + ' m³). Davon hängen die Fahrten ab.');
+    }
+  } else if (gruen === 'unbekannt') {
+    warnungen.push('Unklar, ob der Grünschnitt mit soll – bitte nachfragen.');
+  }
+
+  /* --- Ort und Zone ----------------------------------------------------- */
+  if (zeilen.ort) {
+    felder.adresse = zeilen.ort;
+    const zone = zoneFuerOrt(zeilen.ort);
+    if (zone) {
+      felder.zone = zone;
+      notizen.push('Ort ' + zeilen.ort + ' \u2192 ' + LABELS.zonenKurz[zone]);
+    } else {
+      warnungen.push('Ort "' + zeilen.ort + '" ist keiner Zone zugeordnet \u2013 ' +
+        'bitte Anfahrt selbst wählen.');
+    }
+  }
+
+  /* --- Ohne Grundlage kein Preis ---------------------------------------- */
+  if ((bereich === 'entruempelung' || bereich === 'beides') && !felder.volumen) {
+    warnungen.push(
+      'KEINE GRUNDLAGE: Kein Volumen im Datenblock. Ohne Volumen oder ' +
+      'Wohnfläche lässt sich kein Preis rechnen.'
+    );
+  }
+
+  return { felder: felder, notizen: notizen, warnungen: warnungen };
+}
+
 /* -----------------------------------------------------------------------------
  * HAUPTFUNKTION
  * -----------------------------------------------------------------------------
@@ -176,6 +449,14 @@ function erkenneWohnflaeche(text) {
  *   warnungen  was NICHT erkannt wurde und geprüft werden muss
  * -------------------------------------------------------------------------- */
 function leseAnfrage(mailtext) {
+  /*
+   * Schickt die Website den strukturierten Block mit, ist er die bessere
+   * Quelle: feste Schlüssel statt deutscher Sätze. Ältere Mails haben ihn
+   * nicht – für die gilt unverändert der Textweg darunter.
+   */
+  const strukturiert = leseRechnerDaten(mailtext);
+  if (strukturiert) return strukturiert;
+
   const felder = {};
   const notizen = [];
   const warnungen = [];
@@ -218,15 +499,7 @@ function leseAnfrage(mailtext) {
   const ort = ersteZeile('ort') || ersteZeile('wo') || ersteZeile('adresse');
   if (ort) {
     felder.adresse = ort;
-    const schluessel = ort.toLowerCase().replace(/[^a-zäöüß]/g, '');
-    let zone = ORT_ZONEN[schluessel];
-    if (!zone) {
-      // auch Teiltreffer versuchen, z. B. "38124 Braunschweig-Stöckheim"
-      const gefunden = Object.keys(ORT_ZONEN).find(function (o) {
-        return ort.toLowerCase().indexOf(o) !== -1;
-      });
-      if (gefunden) zone = ORT_ZONEN[gefunden];
-    }
+    const zone = zoneFuerOrt(ort);
     if (zone) {
       felder.zone = zone;
       notizen.push('Ort ' + ort + ' → ' + LABELS.zonenKurz[zone]);
@@ -346,10 +619,28 @@ function leseAnfrage(mailtext) {
     notizen.push('Zimmer: ' + zimmer);
     if (!flaeche) {
       // Die Mail nennt keine Fläche. Grob aus den Zimmern rechnen,
-      // damit das Formular nicht leer bleibt — und deutlich warnen.
+      // damit das Formular nicht leer bleibt.
       felder.wohnflaeche = zimmer * PREISE.entruempelung.quadratmeterProZimmer;
-      warnungen.push('Keine Wohnfläche in der Mail. Aus ' + zimmer + ' Zimmern grob ' +
-        felder.wohnflaeche + ' m² geschätzt – bitte prüfen und korrigieren.');
+      /*
+       * Ob das eine Warnung wert ist, hängt daran, ob die Fläche überhaupt in
+       * den Preis eingeht: Nennt die Mail ein Volumen, rechnet der Rechner
+       * darüber, und die geschätzte Fläche steht nur noch im PDF. Davor zu
+       * warnen wäre Lärm – und würde die echten Warnungen verwässern.
+       *
+       * Die Volumenzeile wird weiter unten ausgewertet; hier genügt die
+       * Frage, ob überhaupt eine brauchbare drinsteht.
+       */
+      const mitVolumen = Boolean(
+        erkenneVolumen(ersteZeile('volumen') || ersteZeile('menge') || '')
+      );
+      if (mitVolumen) {
+        notizen.push('Wohnfläche aus ' + zimmer + ' Zimmern grob auf ' +
+          felder.wohnflaeche + ' m² geschätzt – nur fürs PDF, gerechnet wird ' +
+          'mit dem Volumen.');
+      } else {
+        warnungen.push('Keine Wohnfläche in der Mail. Aus ' + zimmer + ' Zimmern grob ' +
+          felder.wohnflaeche + ' m² geschätzt – bitte prüfen und korrigieren.');
+      }
     }
   }
 
@@ -366,23 +657,62 @@ function leseAnfrage(mailtext) {
     warnungen.push('Füllgrad nicht erkannt – bitte selbst wählen.');
   }
 
-  /* --- Etage ------------------------------------------------------------- */
-  const etage = erkenneEtage(hole('etage').join(' ') + ' ' + hole('stockwerk').join(' '));
+  /* --- Etage und Aufzug -------------------------------------------------- */
+  const etageText = hole('etage').join(' ') + ' ' + hole('stockwerk').join(' ');
+  const etage = erkenneEtage(etageText);
   if (etage) {
-    felder.etage = etage;
-    notizen.push('Etage: ' + LABELS.etage[etage]);
+    felder.etage = etage.etage;
+    notizen.push('Etage: ' + LABELS.etage[etage.etage] +
+      (etage.hinweis ? ' (' + etage.hinweis + ')' : ''));
+    if (etage.warnung) warnungen.push(etage.warnung);
+    if (etage.aufzug === true) felder.aufzug = true;
   }
 
-  /* --- Aufzug ------------------------------------------------------------ */
-  const aufzugText = (hole('aufzug').join(' ') + ' ' + hole('etage').join(' ')).toLowerCase();
-  if (/aufzug|lift/.test(aufzugText)) {
+  // Steht "ohne Aufzug" in derselben Zeile, ist das eindeutig.
+  const aufzugText = (hole('aufzug').join(' ') + ' ' + etageText).toLowerCase();
+  if (felder.aufzug === undefined && /aufzug|lift/.test(aufzugText)) {
     felder.aufzug = !/kein|ohne|nein|nicht/.test(aufzugText);
+  }
+  if (felder.aufzug !== undefined) {
     notizen.push('Aufzug: ' + (felder.aufzug ? 'ja' : 'nein'));
   }
 
+  /* --- Wie viele Leute (Zeile "Leute:") ---------------------------------- */
+  const leuteZeile = ersteZeile('leute') || ersteZeile('personen');
+  if (leuteZeile) {
+    const leute = erkenneLeute(leuteZeile);
+    if (leute) {
+      felder.personen = leute;
+      notizen.push('Personen: ' + leute + ' (aus "' + leuteZeile.split('–')[0].trim() + '")');
+    }
+  }
+
+  /* --- Was im "Besonderes" steht, aber keine Abfallart ist ---------------
+   * Diese drei Antworten verändern den Auftrag, ohne dass eine Abfallart
+   * davon betroffen wäre. Bisher gingen sie unter – jetzt stehen sie im
+   * Bericht unter "Bitte prüfen".
+   * -------------------------------------------------------------------- */
+  const besonderesText = hole('besonderes').join(' ') + ' ' + hole('besondere gegenstände').join(' ');
+  const bt = besonderesText.toLowerCase();
+  if (/noch gut sind|verwertbar|gut erhalten/.test(bt)) {
+    warnungen.push('Verwertbares, bei Besichtigung gegenrechnen');
+  }
+  if (/sehr schweres|klavier|tresor|schwerlast/.test(bt)) {
+    warnungen.push('Schwerlast, mindestens 2 Personen');
+  }
+  /*
+   * "Etwas anderes: <Text>" – der Freitext des Kunden. Er kann alles
+   * enthalten, vom Öltank bis zum Taubenkot, und gehört deshalb ungekürzt
+   * vor die Augen, nicht in eine Schublade.
+   */
+  besonderesText.split(/,|;/).forEach(function (teil) {
+    const t = teil.trim();
+    const m = t.match(/^etwas anderes\s*:\s*(.+)$/i);
+    if (m && m[1].trim()) warnungen.push('Eigene Angabe: ' + m[1].trim());
+  });
+
   /* --- Abfallarten ------------------------------------------------------- */
-  const besonderes = hole('besonderes').join(' ') + ' ' + hole('achtung').join(' ') +
-    ' ' + hole('besondere gegenstände').join(' ');
+  const besonderes = besonderesText + ' ' + hole('achtung').join(' ');
   const arten = erkenneAbfallarten(besonderes);
   if (arten.length) {
     // Dazu, nicht statt: der Grünschnitt von oben bleibt stehen.
@@ -398,8 +728,15 @@ function leseAnfrage(mailtext) {
   if (volumenZeile) {
     const volumen = erkenneVolumen(volumenZeile);
     if (volumen) {
-      felder.volumen = volumen;
-      notizen.push('Volumen: ' + volumen + ' m³ (obere Grenze aus "' + volumenZeile + '")');
+      felder.volumen = volumen.mitte;
+      if (volumen.max > volumen.min) {
+        felder.volumenMin = volumen.min;
+        felder.volumenMax = volumen.max;
+        notizen.push('Volumen: ' + volumen.min + '–' + volumen.max + ' m³, gerechnet mit ' +
+          volumen.mitte + ' m³ (Mitte); die Spanne bestimmt den Preis von–bis');
+      } else {
+        notizen.push('Volumen: ' + volumen.mitte + ' m³');
+      }
     }
   }
 
@@ -428,6 +765,20 @@ function leseAnfrage(mailtext) {
   const anhaenge = ersteZeile('anhänge');
   if (anhaenge && Number(anhaenge) > 0) {
     warnungen.push('Die Anfrage hat ' + anhaenge + ' Anhang/Anhänge (Fotos) – vor dem Angebot ansehen.');
+  }
+
+  /*
+   * Ohne Volumen UND ohne Wohnfläche gibt es für eine Entrümpelung keine
+   * Grundlage: Die Arbeit käme dann allein aus der Grundpauschale, und das
+   * wäre keine Schätzung, sondern eine Zahl, die zufällig erscheint.
+   */
+  if ((art === 'entruempelung' || art === 'beides') &&
+      !felder.volumen && !felder.wohnflaeche) {
+    warnungen.push(
+      'KEINE GRUNDLAGE: Weder Volumen noch Wohnfläche in der Mail. So lässt ' +
+      'sich kein Preis rechnen – bitte eines von beidem eintragen oder ' +
+      'nachfragen.'
+    );
   }
 
   if (!notizen.length) {
