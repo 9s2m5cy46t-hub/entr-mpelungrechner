@@ -208,6 +208,28 @@ const PREISE = {
 };
 
 /* -----------------------------------------------------------------------------
+ * 1b) ABGELEITETE KONSTANTEN
+ * -----------------------------------------------------------------------------
+ * Diese beiden Werte werden NICHT frei gesetzt, sondern aus den Zahlen oben
+ * errechnet. Damit kostet dieselbe Arbeit gleich viel, egal ob sie über die
+ * Wohnfläche oder über ein angegebenes Volumen gerechnet wird – sonst würde
+ * eine importierte Anfrage anders bepreist als dieselbe Wohnung von Hand.
+ *
+ * Wer oben proQuadratmeter, quadratmeterProStunde oder
+ * kubikmeterProQuadratmeter ändert, muss hier nichts anfassen.
+ * -------------------------------------------------------------------------- */
+
+// Preis je Kubikmeter Räumgut: 3,50 € je m² geteilt durch 0,333 m³ je m²
+// ergibt 10,50 € je m³.
+PREISE.entruempelung.preisProKubikmeter =
+  PREISE.entruempelung.proQuadratmeter / PREISE.entruempelung.kubikmeterProQuadratmeter;
+
+// Wie viele Kubikmeter eine Person in einer Stunde schafft: 15 m² je Stunde
+// mal 0,333 m³ je m² ergibt 5 m³ je Personenstunde.
+PREISE.entruempelung.kubikmeterProPersonenstunde =
+  PREISE.entruempelung.quadratmeterProStunde * PREISE.entruempelung.kubikmeterProQuadratmeter;
+
+/* -----------------------------------------------------------------------------
  * 2) AUFTRAGSARTEN
  * -----------------------------------------------------------------------------
  * "modell" bestimmt, wie gerechnet wird:
@@ -511,40 +533,63 @@ function berechnePreis(eingaben) {
   let volumenHerkunft = 'angegeben';   // "angegeben" oder "geschätzt"
 
   if (modell === 'flaeche') {
-    /* ---------- Entrümpelung --------------------------------------------- */
+    /* ---------- Entrümpelung ---------------------------------------------
+     * Zwei Wege, die bei gleicher Menge dasselbe ergeben:
+     *
+     *   Volumen angegeben → Arbeit und Stunden kommen aus dem Volumen.
+     *                       Der Vermüllungsgrad wird dann NICHT noch einmal
+     *                       aufgeschlagen: Wer 30 m³ nennt, hat den vollen
+     *                       Schrank schon mitgezählt. Sonst zählte die
+     *                       Vermüllung doppelt.
+     *   kein Volumen      → wie bisher aus der Wohnfläche, mit Vermüllungsgrad.
+     *
+     * Probe: 60 m², leicht, 20 m³ ergibt in beiden Wegen 290 € Arbeit und
+     * 4 Personenstunden (siehe tests/import.test.js).
+     * ------------------------------------------------------------------- */
     const e = PREISE.entruempelung;
     const wohnflaeche = Math.max(0, Number(eingaben.wohnflaeche) || 0);
     const grad = e.vermuellung[eingaben.vermuellungsgrad] ? eingaben.vermuellungsgrad : 'leicht';
     const faktor = e.vermuellung[grad];
-
-    const flaechenpreis = wohnflaeche * e.proQuadratmeter;
-    zurArbeit(
-      'Wohnfläche (' + formatZahl(wohnflaeche) + ' m\u00b2 \u00d7 ' + formatEuroCent(e.proQuadratmeter) + ')',
-      flaechenpreis
-    );
-
-    if (faktor !== 1) {
-      // Der Vermüllungsgrad wirkt auf Grundpauschale und Flächenanteil,
-      // nicht auf Gebühren und Nebenkosten.
-      const zuschlag = (PREISE.grundpauschale + flaechenpreis) * (faktor - 1);
-      zurArbeit(
-        'Vermüllungsgrad ' + LABELS.vermuellung[grad] + ' (\u00d7' + String(faktor).replace('.', ',') + ')',
-        zuschlag
-      );
-    }
-
-    if (eingaben.kellerabteil) zurArbeit('Kellerabteil', e.kellerabteil);
-
-    arbeitsstunden = (wohnflaeche / e.quadratmeterProStunde) * faktor;
-    if (!eingaben.aufzug) arbeitsstunden += e.zusatzstundenOhneAufzug;
-
-    // Aus der Wohnfläche geschätzt — es sei denn, es ist eins angegeben
-    // (z. B. übernommen aus der Website-Anfrage).
     const angegeben = Math.max(0, Number(eingaben.volumen) || 0);
+
     if (angegeben > 0) {
+      /* --- Weg über das Volumen --- */
       volumen = angegeben;
       volumenHerkunft = 'angegeben';
+
+      zurArbeit(
+        'Räumvolumen (' + formatVolumen(volumen) + ' \u00d7 ' + formatEuroCent(e.preisProKubikmeter) + ')',
+        volumen * e.preisProKubikmeter
+      );
+
+      if (eingaben.kellerabteil) zurArbeit('Kellerabteil', e.kellerabteil);
+
+      arbeitsstunden = volumen / e.kubikmeterProPersonenstunde;
+      if (!eingaben.aufzug) arbeitsstunden += e.zusatzstundenOhneAufzug;
+
     } else {
+      /* --- Weg über die Wohnfläche (unverändert) --- */
+      const flaechenpreis = wohnflaeche * e.proQuadratmeter;
+      zurArbeit(
+        'Wohnfläche (' + formatZahl(wohnflaeche) + ' m\u00b2 \u00d7 ' + formatEuroCent(e.proQuadratmeter) + ')',
+        flaechenpreis
+      );
+
+      if (faktor !== 1) {
+        // Der Vermüllungsgrad wirkt auf Grundpauschale und Flächenanteil,
+        // nicht auf Gebühren und Nebenkosten.
+        const zuschlag = (PREISE.grundpauschale + flaechenpreis) * (faktor - 1);
+        zurArbeit(
+          'Vermüllungsgrad ' + LABELS.vermuellung[grad] + ' (\u00d7' + String(faktor).replace('.', ',') + ')',
+          zuschlag
+        );
+      }
+
+      if (eingaben.kellerabteil) zurArbeit('Kellerabteil', e.kellerabteil);
+
+      arbeitsstunden = (wohnflaeche / e.quadratmeterProStunde) * faktor;
+      if (!eingaben.aufzug) arbeitsstunden += e.zusatzstundenOhneAufzug;
+
       volumen = wohnflaeche * e.kubikmeterProQuadratmeter * faktor;
       volumenHerkunft = 'geschätzt';
     }
@@ -639,9 +684,37 @@ function berechnePreis(eingaben) {
 
   const kalkulationspreis = arbeit + etagenZuschlag + neben;
 
-  /* ---------- Kundenspanne und Zeitplanung ------------------------------- */
-  const von = rundeAuf(kalkulationspreis * (1 - PREISE.spanneProzent), PREISE.rundungSpanne);
-  const bis = rundeAuf(kalkulationspreis * (1 + PREISE.spanneProzent), PREISE.rundungSpanne);
+  /* ---------- Kundenspanne -----------------------------------------------
+   * Nennt die Anfrage eine Volumen-SPANNE (z. B. „etwa 22–42 m³"), dann
+   * entsteht die Preisspanne aus dieser Spanne statt aus pauschalen ±20 %:
+   * Die Rechnung läuft dann noch zweimal, einmal mit der unteren und einmal
+   * mit der oberen Menge.
+   *
+   * RICHTWERT IST DIE MITTE, nicht die Obergrenze. Die Obergrenze ist das
+   * „bis" der Kundenspanne. Wer den Richtwert an die Obergrenze legt, nennt
+   * dem Kunden im Schnitt zu viel und verliert Aufträge, die sich gelohnt
+   * hätten – und die Obergrenze steht ja ohnehin daneben.
+   *
+   * Die beiden Zusatzläufe bekommen die Spanne geleert mitgegeben, damit
+   * sie sich nicht endlos selbst aufrufen.
+   * -------------------------------------------------------------------- */
+  const spanneMin = Math.max(0, Number(eingaben.volumenMin) || 0);
+  const spanneMax = Math.max(0, Number(eingaben.volumenMax) || 0);
+  const ausVolumenspanne =
+    modell === 'flaeche' && spanneMin > 0 && spanneMax > spanneMin;
+
+  let von;
+  let bis;
+  if (ausVolumenspanne) {
+    const ohneSpanne = { volumenMin: 0, volumenMax: 0 };
+    const unten = berechnePreis(Object.assign({}, eingaben, ohneSpanne, { volumen: spanneMin }));
+    const oben = berechnePreis(Object.assign({}, eingaben, ohneSpanne, { volumen: spanneMax }));
+    von = rundeAuf(unten.kalkulationspreis, PREISE.rundungSpanne);
+    bis = rundeAuf(oben.kalkulationspreis, PREISE.rundungSpanne);
+  } else {
+    von = rundeAuf(kalkulationspreis * (1 - PREISE.spanneProzent), PREISE.rundungSpanne);
+    bis = rundeAuf(kalkulationspreis * (1 + PREISE.spanneProzent), PREISE.rundungSpanne);
+  }
 
   const personenstunden = arbeitsstunden + fahrtstunden;
   const dauerVorOrt = personenstunden / personen;
@@ -664,6 +737,15 @@ function berechnePreis(eingaben) {
     zeitslotText: formatZeitslot(zeitslot),
     volumen: volumen,
     volumenHerkunft: volumenHerkunft,
+    // "volumenspanne" = aus der genannten Mengenspanne, sonst "prozent"
+    // Arbeit vor Ort vor dem Etagenaufschlag. Nützlich zum Nachvollziehen
+    // und für Tests, die nicht an Beschriftungen hängen sollen.
+    arbeitVorEtage: arbeit,
+    etagenZuschlag: etagenZuschlag,
+    nebenkosten: neben,
+    spanneHerkunft: ausVolumenspanne ? 'volumenspanne' : 'prozent',
+    spanneVolumenMin: ausVolumenspanne ? spanneMin : 0,
+    spanneVolumenMax: ausVolumenspanne ? spanneMax : 0,
     fahrten: fahrten,
     zone: zoneKey,
     positionen: positionen,
