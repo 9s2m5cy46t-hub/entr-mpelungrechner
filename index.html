@@ -550,6 +550,18 @@
     <button type="button" class="knopf knopf-pdf" id="pdf-knopf">
       Als PDF zusammenfassen
     </button>
+
+    <button type="button" class="knopf knopf-blitz" id="blitz-knopf">
+      Für Blitzangebot kopieren
+    </button>
+    <p class="hinweis" id="blitz-rueckmeldung" aria-live="polite"></p>
+    <!--
+      Rückfall, falls die Zwischenablage nicht erlaubt ist (ältere Browser,
+      Seite ohne HTTPS): Der Text erscheint markiert in diesem Feld und kann
+      mit „Kopieren" aus dem Menü des Geräts übernommen werden.
+    -->
+    <textarea id="blitz-text" class="blitz-text" rows="10" readonly hidden
+      aria-label="Text für Blitzangebot"></textarea>
     <p class="pdf-hinweis">
       Enthält nur die Kundenspanne, nicht den internen Richtwert.
     </p>
@@ -574,6 +586,7 @@
 <script src="js/pricing.js" defer></script>
 <script src="js/import.js" defer></script>
 <script src="js/pdf.js" defer></script>
+<script src="js/export.js" defer></script>
 <script src="js/app.js" defer></script>
 </body>
 </html>

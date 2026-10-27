@@ -243,6 +243,20 @@ input[aria-invalid="true"] { border-color: var(--rot); }
 .knopf:active { transform: translateY(1px); }
 .knopf-gross { margin-bottom: 8px; font-size: 1.35rem; }
 .knopf-pdf { background: var(--erde); margin-top: 22px; }
+.knopf-blitz {
+  margin-top: 12px;
+  background: var(--gruen-dunkel);
+}
+
+/* Rückfall-Feld: nur sichtbar, wenn die Zwischenablage nicht wollte */
+.blitz-text {
+  margin-top: 12px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  min-height: 220px;
+}
+
 .knopf-flach {
   margin-top: 12px;
   background: var(--weiss);
