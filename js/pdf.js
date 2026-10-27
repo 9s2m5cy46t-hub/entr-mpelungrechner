@@ -193,14 +193,45 @@ function erstellePDF(eingaben, ergebnis) {
     if (eingaben.zimmer) zeile('Anzahl Zimmer', formatZahl(eingaben.zimmer));
     zeile('Vermüllungsgrad', LABELS.vermuellung[eingaben.vermuellungsgrad]);
     zeile('Kellerabteil zusätzlich', eingaben.kellerabteil ? 'Ja' : 'Nein');
+  } else if (ergebnis.auftragsart === 'garten') {
+    /*
+     * Gartenarbeiten: die angekreuzten Arbeiten untereinander, damit der
+     * Kunde schwarz auf weiß liest, was im Preis steckt — und was nicht.
+     * Material steht hier nicht: im Garten wird keines eingekauft.
+     */
+    const arbeiten = (eingaben.gartenArbeiten || []).map(function (k) {
+      return LABELS.gartenArbeiten[k] || k;
+    });
+    if (arbeiten.length) {
+      seitenumbruchPruefen(8 + arbeiten.length * 6);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      doc.setTextColor(36, 33, 29);
+      doc.text(pdfSicher('Arbeiten'), links, y);
+      arbeiten.forEach(function (text, index) {
+        doc.setFont('helvetica', 'bold');
+        doc.text(pdfSicher(text), rechts, y + index * 6, { align: 'right' });
+      });
+      y += arbeiten.length * 5.8 + 0.2;
+    }
+    if (LABELS.gartenGroesse[eingaben.gartenGroesse]) {
+      zeile('Gartengröße', LABELS.gartenGroesse[eingaben.gartenGroesse]);
+    }
+    if (LABELS.gartenZustand[eingaben.gartenZustand]) {
+      zeile('Zustand', LABELS.gartenZustand[eingaben.gartenZustand]);
+    }
+    zeile('Schwierigkeit', LABELS.erschwernis[eingaben.erschwernis]);
   } else {
     // Abbruch, Bau, Sonstiges
     zeile('Schwierigkeit', LABELS.erschwernis[eingaben.erschwernis]);
     if (eingaben.material > 0) zeile('Material (im Preis enthalten)', 'Ja');
   }
 
-  zeile('Etage', LABELS.etage[eingaben.etage] || String(eingaben.etage));
-  zeile('Aufzug vorhanden', eingaben.aufzug ? 'Ja' : 'Nein');
+  // Etage und Aufzug nur, wo sie etwas bedeuten — im Garten nicht.
+  if (ergebnis.auftragsart !== 'garten') {
+    zeile('Etage', LABELS.etage[eingaben.etage] || String(eingaben.etage));
+    zeile('Aufzug vorhanden', eingaben.aufzug ? 'Ja' : 'Nein');
+  }
 
   // Voraussichtliche Dauer — hilft dem Kunden bei der Terminplanung.
   // Personenstunden und interner Richtwert stehen hier bewusst NICHT.

@@ -40,13 +40,15 @@ einen Server gesendet.
 | Art | Rechenweg | Pflichtfelder |
 |---|---|---|
 | **Entrümpelung** | Wohnfläche × Preis pro m², mal Vermüllungsgrad | Wohnfläche, Zimmer |
-| **Gartenarbeiten** | Arbeitszeit × Stundensatz, mal Erschwernis | Dauer vor Ort |
+| **Gartenarbeiten** | Arbeitszeit × Stundensatz, Dauer wird vorgeschlagen | Arbeiten, Dauer vor Ort |
 | **Abbruch / Rückbau** | Arbeitszeit × Stundensatz, mal Erschwernis | Dauer vor Ort |
 | **Bau / Montage** | wie Abbruch, zusätzlich Material | Dauer vor Ort |
 | **Sonstiges** | wie Abbruch | Dauer vor Ort |
 
 Bei allen Arten kommen dazu: Anzahl Personen, Etage, Aufzug und die
 Entsorgungsposten. Kundendaten sind nie Pflicht – die braucht nur das PDF.
+Bei Gartenarbeiten sind Etage, Aufzug und Material ausgeblendet: In einem
+Garten gibt es keine Etage, und Material wird dort nicht eingekauft.
 
 **Neue Auftragsart hinzufügen:** in `js/pricing.js` einen Eintrag in
 `AUFTRAGSARTEN` ergänzen und im Dropdown in `index.html` eine `<option>`.
@@ -58,7 +60,14 @@ Oben auf der Seite die Karte „Anfrage aus der Website übernehmen"
 aufklappen, den **Text** der Benachrichtigungsmail einfügen, auf
 „Formular ausfüllen" tippen. Übernommen werden Anfrage-Nummer, Name,
 Telefon, Ort (samt Anfahrtszone), Auftragsart, Zimmer bzw. Wohnfläche,
-Füllgrad, Etage, Abfallarten und das Volumen.
+Füllgrad, Etage, Abfallarten und das Volumen. Bei Gartenanfragen dazu die
+angekreuzten Arbeiten, Gartengröße, Zustand und der Grünschnitt.
+
+Die Auftragsart kommt aus der Zeile **`Bereich:`**, die die Website in der
+Mail mitschickt (`Garten`, `Entrümpelung` oder `Entrümpelung + Garten`) –
+das ist eine Tatsache aus der Mail und muss nicht geraten werden. Fehlt die
+Zeile, etwa in älteren Mails oder beim klassischen Formular, greifen wie
+bisher Stichwörter.
 
 Danach steht ein Bericht in zwei Teilen: **Übernommen** und **Bitte
 prüfen**. Die ausgefüllten Felder sind braun hervorgehoben. Alles bleibt
@@ -104,6 +113,14 @@ const ORT_ZONEN = {
   kosten den Auftrag nur vielleicht.
 - **Die Anhänge der Anfrage (Fotos) kann das Werkzeug nicht sehen.** Es
   weist nur darauf hin, dass es welche gibt.
+- **Wie viel Grünschnitt es ist, steht nicht in der Mail.** Aus „Hecke
+  schneiden" folgt keine Kubikmeterzahl. Das Volumen bleibt deshalb leer und
+  wird angemahnt, statt geraten zu werden – daran hängen die Fahrten und
+  damit ein guter Teil des Preises. Ein voller Anhänger sind etwa 4 m³.
+- **„Entrümpelung + Garten" wird nicht zu einem Auftrag zusammengezogen.**
+  Das Werkzeug rechnet einen Auftrag. Eingestellt wird zunächst die
+  Entrümpelung, die Garten-Angaben werden trotzdem übernommen – für die
+  zweite Kalkulation, auf die der Hinweis ausdrücklich hinweist.
 
 ## GitHub Pages aktivieren
 
@@ -220,6 +237,48 @@ Zeitslot 22 Std. ≈ 3 Tage.
 nicht die Personenstunden. Zwei Leute an zwei Tagen sind **16 Stunden**, nicht
 32. Die Personenstunden rechnet das Werkzeug selbst.
 
+**Gartenarbeiten**
+
+Gerechnet wird wie beim Stundenauftrag – **derselbe Stundensatz, dieselbe
+Grundpauschale, dieselbe Anfahrt**. Es gibt bewusst keinen eigenen
+Garten-Stundensatz: Ein zweiter Satz würde über die Zeit vom ersten
+abweichen, und dann kostet dieselbe Arbeit je nach gewählter Auftragsart
+unterschiedlich viel.
+
+Der Unterschied liegt nur davor: Die **Dauer wird vorgeschlagen**, statt sie
+jedes Mal im Kopf zu überschlagen.
+
+1. Basisstunden der angekreuzten Arbeiten addieren (`garten.basisstunden`)
+2. `× Faktor Gartengröße` (`garten.faktorGroesse`)
+3. `× Faktor Zustand` (`garten.faktorZustand`)
+4. `÷ Anzahl Personen`, dann auf die nächste halbe Stunde aufrunden
+5. Das Ergebnis steht im Feld „Dauer vor Ort" – von dort an rechnet alles
+   wie beim Stundenauftrag weiter
+
+Schritt 4 ist der wichtigste: Die Basisstunden sind die **Arbeit**, die
+anfällt. „Dauer vor Ort" ist die **Zeit, die ihr dort steht**. Zwei Leute
+sind halb so lange da. Ohne das Teilen würde die Arbeit doppelt gezählt.
+
+**Alle Garten-Zahlen stehen noch auf `null`** – dreizehn Werte in
+`PREISE.garten`. Solange eine davon fehlt, schlägt das Werkzeug **nichts**
+vor: Der Kasten über dem Dauerfeld sagt, welche Zahl fehlt, und die Dauer
+wird wie bei Abbruch und Bau selbst eingetragen. Gerechnet wird normal
+weiter, nur eben ohne Vorschlag. Geraten wird nichts.
+
+Die Zahlen am einfachsten so bekommen: beim nächsten Gartenauftrag
+mitschreiben, wie lange **eine Person** für jede Arbeit gebraucht hat, und
+die Werte eintragen. Praktisch ist, bei `faktorGroesse` und `faktorZustand`
+je eine Stufe auf `1.0` zu setzen – die Basisstunden sind dann genau die
+Stunden für diese Stufe.
+
+Der Vorschlag ist immer überschreibbar. Eine selbst eingetragene Zahl wird
+nie ersetzt; der Vorschlag steht dann nur daneben im Kasten.
+
+**Was wir im Garten nicht machen:** keine Baumfällung, kein Pflaster- und
+Terrassenbau, keine Zäune. Angemeldet sind einfache Gartenpflege- und
+Hilfsarbeiten – dasselbe, was auf der Website steht. Ein Angebot über etwas
+anderes gehört nicht aus diesem Werkzeug heraus.
+
 ### Anfahrtszonen
 
 Gemessen von der Kleiststraße aus:
@@ -288,6 +347,10 @@ nicht weiterhilft.
 - **Erschwernisfaktoren** (`stundenAuftrag.erschwernis`) – 1,0 / 1,2 / 1,5 sind
   bewusst niedriger als die Vermüllungsgrade, weil man die Stunden beim
   Stundenauftrag selbst schätzt.
+- **Garten-Basisstunden und -Faktoren** (`garten.*`) – stehen alle auf `null`,
+  weil niemand sie geraten hat. Solange sie fehlen, wird die Dauer bei
+  Gartenaufträgen selbst eingetragen. Die ersten echten Aufträge liefern die
+  Zahlen.
 
 ### Noch offen: Abfallrecht
 

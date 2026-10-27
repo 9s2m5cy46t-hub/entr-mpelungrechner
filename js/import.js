@@ -47,12 +47,66 @@ const ORT_ZONEN = {
  * Freitext auf Auswahlwerte abbilden
  * -------------------------------------------------------------------------- */
 
-/** "Eine Wohnung" -> entruempelung, "Abbruch" -> abbruch, ... */
+/**
+ * Die Zeile "Bereich:" aus der Mail. Die Website schreibt dort "Garten",
+ * "Entrümpelung" oder "Entrümpelung + Garten" — eine Tatsache, die nicht
+ * geraten werden muss. Fehlt die Zeile (ältere Mails, klassisches
+ * Formular), greifen danach die Stichwörter.
+ */
+function erkenneBereich(text) {
+  const t = String(text || '').toLowerCase();
+  if (!t.trim()) return null;
+  const garten = /garten/.test(t);
+  const entruempelung = /entrümpel|entrumpel/.test(t);
+  if (garten && entruempelung) return 'beides';
+  if (garten) return 'garten';
+  if (entruempelung) return 'entruempelung';
+  return null;
+}
+
+/** "Eine Wohnung" -> entruempelung, "Hecke schneiden" -> garten, ... */
 function erkenneAuftragsart(text) {
   const t = text.toLowerCase();
   if (/abbruch|rückbau|ruckbau|abreißen|abreissen|herausreißen/.test(t)) return 'abbruch';
+  // Garten VOR bau: sonst fängt "aufbau|bauen|treppe" eine Gartenanfrage ab
+  if (/garten|rasen|hecke|sträucher|straucher|laub|unkraut|beet|grünschnitt|grunschnitt|mähen|mahen/.test(t)) return 'garten';
   if (/treppe|montage|aufbau|bauen|einbau|renovier/.test(t)) return 'bau';
   if (/wohnung|haus|keller|dachboden|garage|speicher|entrümpel|entrumpel|räumung|raumung/.test(t)) return 'entruempelung';
+  return null;
+}
+
+/**
+ * Die angekreuzten Gartenarbeiten aus der Zeile "Was im Garten:".
+ * Dort stehen die Antworten des Chats im Klartext, mit Komma getrennt.
+ */
+function erkenneGartenarbeiten(text) {
+  const t = text.toLowerCase();
+  const arbeiten = [];
+  if (/rasen|mähen|mahen/.test(t)) arbeiten.push('rasen');
+  if (/hecke|sträucher|straucher/.test(t)) arbeiten.push('hecke');
+  if (/laub|unkraut|beet/.test(t)) arbeiten.push('laub');
+  if (/wegfahren|mitnehmen/.test(t)) arbeiten.push('gruenschnitt_weg');
+  if (/in ordnung bringen|instandsetz/.test(t)) arbeiten.push('instandsetzung');
+  if (/auflösung|auflosung|schuppen/.test(t)) arbeiten.push('aufloesung');
+  if (/etwas anderes|eigene idee/.test(t)) arbeiten.push('sonstiges');
+  return arbeiten;
+}
+
+/** "Mittel (etwa 100–300 m²)" -> mittel */
+function erkenneGartengroesse(text) {
+  const t = String(text || '').toLowerCase();
+  if (/^\s*klein|\bklein\b/.test(t)) return 'klein';
+  if (/\bmittel\b/.test(t)) return 'mittel';
+  if (/\bgroß\b|\bgross\b/.test(t)) return 'gross';
+  return null;
+}
+
+/** "Etwas verwildert" -> leicht, "Stark verwildert" -> stark */
+function erkenneGartenzustand(text) {
+  const t = String(text || '').toLowerCase();
+  if (/stark/.test(t)) return 'stark';
+  if (/etwas verwildert|leicht/.test(t)) return 'leicht';
+  if (/gepflegt/.test(t)) return 'gepflegt';
   return null;
 }
 
@@ -183,14 +237,93 @@ function leseAnfrage(mailtext) {
     warnungen.push('Kein Ort gefunden – bitte Anfahrt selbst wählen.');
   }
 
-  /* --- Auftragsart ------------------------------------------------------- */
-  const wasText = hole('was').join(' ') + ' ' + hole('leistung').join(' ') + ' ' + hole('betreff').join(' ');
-  const art = erkenneAuftragsart(wasText);
+  /* --- Bereich und Auftragsart ------------------------------------------- */
+  const bereich = erkenneBereich(ersteZeile('bereich'));
+  const wasText = hole('was').join(' ') + ' ' + hole('was im garten').join(' ') +
+    ' ' + hole('leistung').join(' ') + ' ' + hole('betreff').join(' ');
+
+  let art = null;
+  if (bereich === 'garten') {
+    art = 'garten';
+  } else if (bereich === 'entruempelung') {
+    art = 'entruempelung';
+  } else if (bereich === 'beides') {
+    /*
+     * Die Website lässt beides zusammen anfragen, das Werkzeug rechnet
+     * einen Auftrag. Hier wird nichts still entschieden: eingestellt ist
+     * die Entrümpelung, und der Hinweis sagt, dass eine zweite Kalkulation
+     * fehlt. Ein zusammengerechneter Preis aus zwei Aufträgen wäre falsch.
+     */
+    art = 'entruempelung';
+    warnungen.push('Die Anfrage umfasst Entrümpelung UND Garten. Das Werkzeug ' +
+      'rechnet einen Auftrag – bitte zwei Kalkulationen erstellen. ' +
+      'Eingestellt ist zunächst die Entrümpelung.');
+  }
+  if (!art) art = erkenneAuftragsart(wasText);
+
   if (art) {
     felder.auftragsart = art;
-    notizen.push('Auftragsart: ' + AUFTRAGSARTEN[art].label);
+    notizen.push('Auftragsart: ' + AUFTRAGSARTEN[art].label +
+      (bereich ? ' (aus der Zeile „Bereich")' : ''));
   } else {
     warnungen.push('Auftragsart nicht erkannt – bitte oben selbst wählen.');
+  }
+
+  /* --- Garten ------------------------------------------------------------- */
+  const gartenZeile = hole('was im garten').join(', ');
+  if (gartenZeile) {
+    const arbeiten = erkenneGartenarbeiten(gartenZeile);
+    if (arbeiten.length) {
+      felder.gartenArbeiten = arbeiten;
+      notizen.push('Arbeiten im Garten: ' + arbeiten.map(function (k) {
+        return LABELS.gartenArbeiten[k];
+      }).join(', '));
+    } else {
+      warnungen.push('Die Gartenarbeiten waren nicht zuzuordnen („' + gartenZeile +
+        '") – bitte selbst ankreuzen.');
+    }
+  }
+
+  const gartenGroesse = erkenneGartengroesse(
+    ersteZeile('gartengröße') || ersteZeile('gartengrösse') || ersteZeile('gartengroesse'));
+  if (gartenGroesse) {
+    felder.gartenGroesse = gartenGroesse;
+    notizen.push('Gartengröße: ' + LABELS.gartenGroesse[gartenGroesse]);
+  } else if (art === 'garten') {
+    warnungen.push('Keine Gartengröße in der Mail – bitte selbst einordnen.');
+  }
+
+  const gartenZustand = erkenneGartenzustand(ersteZeile('zustand'));
+  if (gartenZustand && art === 'garten') {
+    felder.gartenZustand = gartenZustand;
+    notizen.push('Zustand: ' + LABELS.gartenZustand[gartenZustand]);
+  } else if (art === 'garten') {
+    warnungen.push('Kein Zustand in der Mail – bitte selbst einordnen.');
+  }
+
+  /*
+   * Grünschnitt: dass er mitgenommen werden soll, steht in der Mail. WIE VIEL
+   * es ist, steht dort nicht — aus "Hecke schneiden" folgt keine
+   * Kubikmeterzahl. Das Volumen bleibt deshalb leer und wird angemahnt,
+   * statt geraten zu werden: davon hängen die Fahrten und damit ein guter
+   * Teil des Preises ab.
+   */
+  const gruenZeile = (ersteZeile('grünschnitt') || ersteZeile('grunschnitt') || '').toLowerCase();
+  const gruenMit = /mitnehmen/.test(gruenZeile) ||
+    (felder.gartenArbeiten || []).indexOf('gruenschnitt_weg') !== -1;
+  if (gruenMit) {
+    felder.abfallarten = (felder.abfallarten || []).concat(['gruenschnitt']);
+    notizen.push('Grünschnitt wird mitgenommen');
+    const anhaenger = PREISE.transport.kapazitaetProFahrt + ' m³';
+    // Steht in der Mail überhaupt ein Volumen? Bei einer reinen
+    // Gartenanfrage nie – bei "Entrümpelung + Garten" gilt es dem Hausrat.
+    warnungen.push(hole('volumen').length || hole('menge').length
+      ? 'Grünschnitt kommt dazu. Das Volumen aus der Mail gilt dem Hausrat – ' +
+          'bitte den Grünschnitt dazurechnen (ein voller Anhänger sind etwa ' +
+          anhaenger + ').'
+      : 'Volumen des Grünschnitts steht nicht in der Mail – bitte schätzen ' +
+          '(ein voller Anhänger sind etwa ' + anhaenger + '). ' +
+          'Davon hängen die Fahrten ab.');
   }
 
   /* --- Größe: Wohnfläche oder Zimmer ------------------------------------- */
@@ -221,7 +354,10 @@ function leseAnfrage(mailtext) {
   }
 
   /* --- Füllgrad ---------------------------------------------------------- */
-  const vollText = hole('wie voll').join(' ') + ' ' + hole('zustand').join(' ') + ' ' + hole('füllgrad').join(' ');
+  // "Zustand" nur dann, wenn es kein Gartenauftrag ist — dort beschreibt
+  // dieselbe Zeile den Garten, nicht die Vermüllung einer Wohnung.
+  const vollText = hole('wie voll').join(' ') + ' ' + hole('füllgrad').join(' ') +
+    (art === 'garten' ? '' : ' ' + hole('zustand').join(' '));
   const grad = erkenneVermuellungsgrad(vollText);
   if (grad) {
     felder.vermuellungsgrad = grad;
@@ -249,7 +385,11 @@ function leseAnfrage(mailtext) {
     ' ' + hole('besondere gegenstände').join(' ');
   const arten = erkenneAbfallarten(besonderes);
   if (arten.length) {
-    felder.abfallarten = arten;
+    // Dazu, nicht statt: der Grünschnitt von oben bleibt stehen.
+    const vorhanden = felder.abfallarten || [];
+    felder.abfallarten = vorhanden.concat(arten.filter(function (a) {
+      return vorhanden.indexOf(a) === -1;
+    }));
     notizen.push('Entsorgung: ' + arten.map(function (a) { return LABELS.abfallarten[a]; }).join(', '));
   }
 
@@ -266,8 +406,15 @@ function leseAnfrage(mailtext) {
   /* --- Beschreibung für das PDF ------------------------------------------ */
   const teile = [];
   hole('was').forEach(function (w) { teile.push(w); });
+  /*
+   * Die angekreuzten Gartenarbeiten stehen im PDF schon als eigene Zeilen —
+   * hier würden sie den Text nur zustellen. Was hier hingehört, ist die
+   * eigene Beschreibung des Kunden: sie ist oft genauer als jede Auswahl.
+   */
+  hole('beschreibung').forEach(function (w) { teile.push(w); });
   if (zimmer) teile.push(zimmer + ' Zimmer');
   hole('besonderes').forEach(function (w) { teile.push('Besonderes: ' + w); });
+  hole('wie oft').forEach(function (w) { teile.push('Häufigkeit: ' + w); });
   hole('wann').forEach(function (w) { teile.push('Wunschtermin: ' + w); });
   if (teile.length) felder.beschreibung = teile.join(', ') + '.';
 

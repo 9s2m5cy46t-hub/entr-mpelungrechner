@@ -144,6 +144,51 @@ const PREISE = {
     materialAufschlag: 0.1,
   },
 
+  /* --- Nur Gartenarbeiten: Stunden schätzen ------------------------------
+   * Gartenaufträge rechnen über dasselbe Stundenmodell wie Abbruch und Bau:
+   * derselbe Stundensatz, dieselbe Grundpauschale, dieselbe Anfahrt. Ein
+   * eigener Garten-Stundensatz stünde hier bewusst NICHT — er würde mit der
+   * Zeit vom Satz oben abweichen, und dann kostet dieselbe Arbeit je nach
+   * gewählter Auftragsart unterschiedlich viel.
+   *
+   * Die Zahlen hier dienen einem einzigen Zweck: aus den Angaben des Kunden
+   * die DAUER vor Ort zu schätzen, damit man sie nicht jedes Mal im Kopf
+   * überschlagen muss. Der Vorschlag landet im Feld "Dauer vor Ort" und ist
+   * dort überschreibbar.
+   *
+   * Solange ein gebrauchter Wert auf null steht, schätzt das Werkzeug NICHT.
+   * Es sagt dann, welche Zahl fehlt, und die Dauer wird wie bei Abbruch und
+   * Bau selbst eingetragen. Geraten wird nichts — eine Schätzung aus
+   * erfundenen Zahlen wäre schlimmer als keine.
+   *
+   * WOHER DIE ZAHLEN KOMMEN SOLLEN: beim nächsten Gartenauftrag mitschreiben,
+   * wie lange eine Person für jede Arbeit gebraucht hat, und hier eintragen.
+   * Nach zwei oder drei Aufträgen stimmen sie ungefähr; danach nur noch
+   * nachziehen, wenn die geplante Zeit regelmäßig nicht reicht.
+   */
+  garten: {
+    // Personenstunden für die Arbeit, bevor Größe und Zustand wirken —
+    // also wie lange EINE Person dafür braucht. Wie viele Leute hinfahren,
+    // steht weiter unten im Formular und wird davon abgezogen.
+    basisstunden: {
+      rasen: null,
+      hecke: null,
+      laub: null,
+      gruenschnitt_weg: null,
+      instandsetzung: null,
+      aufloesung: null,
+      sonstiges: null,
+    },
+
+    // Multiplikatoren auf die Summe der Basisstunden.
+    //
+    // Praktisch ist, eine Stufe auf 1,0 zu setzen — die Basisstunden oben
+    // sind dann genau die Stunden für diese Stufe, und die anderen Stufen
+    // sagen, wie viel mehr oder weniger es dort ist.
+    faktorGroesse: { klein: null, mittel: null, gross: null },
+    faktorZustand: { gepflegt: null, leicht: null, stark: null },
+  },
+
   /* --- Zuschläge je Abfallart ---------------------------------------------
    * Der normale Entsorgungsaufwand steckt jetzt im Transport (Fahrten ×
    * Anlieferungspreis). Hier stehen nur noch ZUSÄTZLICHE Kosten für Arten,
@@ -208,6 +253,31 @@ const LABELS = {
     bauschutt: 'Bauschutt-Container',
     altholz: 'Altholz / Bauholz',
     gruenschnitt: 'Grünschnitt',
+  },
+  /*
+   * Garten: WORTGLEICH mit den Antwortmöglichkeiten im Chat der Website
+   * (src/lib/auftrag.ts, schritteGarten). Das ist Absicht — so muss beim
+   * Übertragen einer Anfrage nichts gedeutet werden, und im PDF steht
+   * dasselbe, was der Kunde angeklickt hat.
+   */
+  gartenArbeiten: {
+    rasen: 'Rasen mähen oder kürzen',
+    hecke: 'Hecke oder Sträucher schneiden',
+    laub: 'Laub, Unkraut, Beete',
+    gruenschnitt_weg: 'Grünschnitt wegfahren',
+    instandsetzung: 'Garten wieder in Ordnung bringen',
+    aufloesung: 'Gartenauflösung (Schuppen, Möbel, Geräte)',
+    sonstiges: 'Etwas anderes / eigene Idee',
+  },
+  gartenGroesse: {
+    klein: 'Klein (bis etwa 100 m\u00b2)',
+    mittel: 'Mittel (etwa 100\u2013300 m\u00b2)',
+    gross: 'Groß (über 300 m\u00b2)',
+  },
+  gartenZustand: {
+    gepflegt: 'Gepflegt',
+    leicht: 'Etwas verwildert',
+    stark: 'Stark verwildert',
   },
   etage: {
     eg: 'Erdgeschoss',
@@ -280,6 +350,108 @@ function formatStunden(stunden) {
   return new Intl.NumberFormat('de-DE', {
     minimumFractionDigits: 0, maximumFractionDigits: 2,
   }).format(stunden) + ' Std.';
+}
+
+/* -----------------------------------------------------------------------------
+ * 4b) STUNDEN SCHÄTZEN FÜR GARTENAUFTRÄGE
+ * -----------------------------------------------------------------------------
+ * Setzt VOR der Preisrechnung an und beantwortet nur eine Frage: Wie lange
+ * sind wir dort? Das Ergebnis füllt das Feld "Dauer vor Ort". Danach rechnet
+ * berechnePreis() ganz normal weiter — an der Preisrechnung ändert sich
+ * nichts, weder für Garten noch für die anderen Auftragsarten.
+ *
+ *   Summe der Basisstunden der angekreuzten Arbeiten   (Personenstunden)
+ *     × Faktor Gartengröße
+ *     × Faktor Zustand
+ *     ÷ Anzahl Personen
+ *     = Dauer vor Ort, auf die nächste halbe Stunde aufgerundet
+ *
+ * Das Teilen durch die Personen ist wichtig: Die Basisstunden sind die
+ * Arbeit, die anfällt — "Dauer vor Ort" ist dagegen die Zeit, die man dort
+ * steht. Zwei Leute sind halb so lange da. Ohne das Teilen würde
+ * berechnePreis() die Arbeit anschließend noch einmal mit den Personen
+ * multiplizieren und damit doppelt zählen.
+ *
+ * Dass zwei Leute genau doppelt so schnell sind, ist eine Vereinfachung —
+ * aber dieselbe, mit der das Werkzeug auch bei Abbruch und Bau rechnet.
+ *
+ * Rückgabe:
+ *   stunden   Zahl, oder null wenn nicht geschätzt werden kann
+ *   fehlt     welche Zahlen in PREISE.garten dafür fehlen
+ *   teile     Klartext, woraus sich die Schätzung zusammensetzt
+ *
+ * stunden === null ist kein Fehler: dann wird die Dauer selbst eingetragen.
+ * -------------------------------------------------------------------------- */
+function schaetzeGartenstunden(eingaben) {
+  const g = PREISE.garten;
+  const arbeiten = Array.isArray(eingaben.gartenArbeiten) ? eingaben.gartenArbeiten : [];
+  const fehlt = [];
+  const teile = [];
+
+  if (!arbeiten.length) {
+    return { stunden: null, fehlt: [], teile: [], ohneArbeiten: true };
+  }
+
+  let summe = 0;
+  arbeiten.forEach(function (schluessel) {
+    const wert = g.basisstunden[schluessel];
+    if (typeof wert !== 'number') {
+      fehlt.push('Basisstunden für \u201e' +
+        (LABELS.gartenArbeiten[schluessel] || schluessel) + '\u201c');
+      return;
+    }
+    summe += wert;
+  });
+
+  const groesseKey = g.faktorGroesse.hasOwnProperty(eingaben.gartenGroesse)
+    ? eingaben.gartenGroesse : null;
+  const zustandKey = g.faktorZustand.hasOwnProperty(eingaben.gartenZustand)
+    ? eingaben.gartenZustand : null;
+
+  if (!groesseKey) {
+    fehlt.push('Gartengröße ist nicht ausgewählt');
+  } else if (typeof g.faktorGroesse[groesseKey] !== 'number') {
+    fehlt.push('Faktor für Gartengröße \u201e' + LABELS.gartenGroesse[groesseKey] + '\u201c');
+  }
+
+  if (!zustandKey) {
+    fehlt.push('Zustand ist nicht ausgewählt');
+  } else if (typeof g.faktorZustand[zustandKey] !== 'number') {
+    fehlt.push('Faktor für Zustand \u201e' + LABELS.gartenZustand[zustandKey] + '\u201c');
+  }
+
+  // Eine einzige fehlende Zahl genügt, um nicht zu schätzen.
+  if (fehlt.length) return { stunden: null, fehlt: fehlt, teile: [] };
+
+  const faktorGroesse = g.faktorGroesse[groesseKey];
+  const faktorZustand = g.faktorZustand[zustandKey];
+  const personen = Math.max(1, Number(eingaben.personen) || 1);
+  const personenstunden = summe * faktorGroesse * faktorZustand;
+
+  teile.push(arbeiten.length + (arbeiten.length === 1 ? ' Arbeit' : ' Arbeiten') +
+    ' \u2192 ' + formatStunden(summe) + ' Arbeit');
+  if (faktorGroesse !== 1) {
+    teile.push(LABELS.gartenGroesse[groesseKey] + ' (\u00d7' +
+      String(faktorGroesse).replace('.', ',') + ')');
+  }
+  if (faktorZustand !== 1) {
+    teile.push(LABELS.gartenZustand[zustandKey] + ' (\u00d7' +
+      String(faktorZustand).replace('.', ',') + ')');
+  }
+
+  if (personenstunden !== summe) {
+    teile.push('zusammen ' + formatStunden(personenstunden) + ' Arbeit');
+  }
+  if (personen > 1) {
+    teile.push('verteilt auf ' + personen + ' Personen');
+  }
+
+  return {
+    stunden: aufHalbeStundenAufrunden(personenstunden / personen),
+    personenstunden: personenstunden,
+    fehlt: [],
+    teile: teile,
+  };
 }
 
 /* -----------------------------------------------------------------------------

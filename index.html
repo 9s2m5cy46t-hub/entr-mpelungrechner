@@ -175,6 +175,124 @@
         </div>
       </div>
 
+      <!-- ===== nur Gartenarbeiten =====
+           Steht VOR dem Stundenblock, weil es in dieser Reihenfolge
+           ausgefüllt wird: Arbeiten ankreuzen, Garten einordnen, und das
+           Werkzeug schlägt die Dauer vor. Die Formulierungen sind
+           wortgleich mit dem Chat auf der Website — was der Kunde
+           angeklickt hat, lässt sich also hier wiederfinden, ohne zu
+           übersetzen. -->
+      <div data-art="garten" hidden>
+        <div class="feld">
+          <span class="label-block">Was soll im Garten gemacht werden?</span>
+          <p class="hinweis">
+            Mehrfachauswahl – dieselben Punkte wie im Chat auf der Website
+          </p>
+          <div class="auswahl-liste">
+            <label class="auswahl">
+              <input type="checkbox" name="gartenArbeiten" value="rasen">
+              <span class="auswahl-inhalt">
+                <span class="auswahl-titel">Rasen mähen oder kürzen</span>
+              </span>
+            </label>
+            <label class="auswahl">
+              <input type="checkbox" name="gartenArbeiten" value="hecke">
+              <span class="auswahl-inhalt">
+                <span class="auswahl-titel">Hecke oder Sträucher schneiden</span>
+              </span>
+            </label>
+            <label class="auswahl">
+              <input type="checkbox" name="gartenArbeiten" value="laub">
+              <span class="auswahl-inhalt">
+                <span class="auswahl-titel">Laub, Unkraut, Beete</span>
+              </span>
+            </label>
+            <label class="auswahl">
+              <input type="checkbox" name="gartenArbeiten" value="gruenschnitt_weg">
+              <span class="auswahl-inhalt">
+                <span class="auswahl-titel">Grünschnitt wegfahren</span>
+                <span class="auswahl-text">Volumen unten angeben – ein voller Anhänger sind etwa 4 m³</span>
+              </span>
+            </label>
+            <label class="auswahl">
+              <input type="checkbox" name="gartenArbeiten" value="instandsetzung">
+              <span class="auswahl-inhalt">
+                <span class="auswahl-titel">Garten wieder in Ordnung bringen</span>
+              </span>
+            </label>
+            <label class="auswahl">
+              <input type="checkbox" name="gartenArbeiten" value="aufloesung">
+              <span class="auswahl-inhalt">
+                <span class="auswahl-titel">Gartenauflösung</span>
+                <span class="auswahl-text">Schuppen, Möbel, Geräte</span>
+              </span>
+            </label>
+            <label class="auswahl">
+              <input type="checkbox" name="gartenArbeiten" value="sonstiges">
+              <span class="auswahl-inhalt">
+                <span class="auswahl-titel">Etwas anderes / eigene Idee</span>
+                <span class="auswahl-text">Oben unter „Was ist zu tun?" beschreiben</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div class="feld">
+          <span class="label-block">Wie groß ist der Garten?</span>
+          <div class="schalter">
+            <label class="schalter-option">
+              <input type="radio" name="gartenGroesse" value="klein">
+              <span>Klein</span>
+            </label>
+            <label class="schalter-option">
+              <input type="radio" name="gartenGroesse" value="mittel" checked>
+              <span>Mittel</span>
+            </label>
+            <label class="schalter-option">
+              <input type="radio" name="gartenGroesse" value="gross">
+              <span>Groß</span>
+            </label>
+          </div>
+          <p class="hinweis">
+            Klein bis etwa 100 m², mittel etwa 100–300 m², groß darüber
+          </p>
+        </div>
+
+        <div class="feld">
+          <span class="label-block">In welchem Zustand ist der Garten?</span>
+          <div class="auswahl-liste">
+            <label class="auswahl">
+              <input type="radio" name="gartenZustand" value="gepflegt" checked>
+              <span class="auswahl-inhalt">
+                <span class="auswahl-titel">Gepflegt</span>
+                <span class="auswahl-text">Regelmäßig gemacht, nichts aufgestaut.</span>
+              </span>
+            </label>
+            <label class="auswahl">
+              <input type="radio" name="gartenZustand" value="leicht">
+              <span class="auswahl-inhalt">
+                <span class="auswahl-titel">Etwas verwildert</span>
+                <span class="auswahl-text">Eine Saison liegen geblieben, aber überschaubar.</span>
+              </span>
+            </label>
+            <label class="auswahl">
+              <input type="radio" name="gartenZustand" value="stark">
+              <span class="auswahl-inhalt">
+                <span class="auswahl-titel">Stark verwildert</span>
+                <span class="auswahl-text">Lange nichts gemacht, deutlich mehr Zeit nötig.</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Vorschlag für die Dauer. Füllt das Feld darunter, sobald in
+             PREISE.garten Zahlen stehen. Fehlen sie, sagt der Kasten
+             welche — geraten wird nichts. -->
+        <div class="feld">
+          <div id="garten-schaetzung" class="import-bericht" hidden></div>
+        </div>
+      </div>
+
       <!-- ===== Abbruch / Bau / Sonstiges ===== -->
       <div data-modell="stunden" hidden>
         <div class="feld">
@@ -216,7 +334,7 @@
           </div>
         </div>
 
-        <div class="feld">
+        <div class="feld" data-art-nicht="garten">
           <label for="material">Materialkosten in €</label>
           <p class="hinweis">
             Was ihr einkaufen müsst (Holz, Schrauben, Beton …).
@@ -274,7 +392,11 @@
         <p class="fehler" data-fehler-fuer="kilometer" hidden></p>
       </div>
 
-      <div class="feld">
+      <!-- Etage und Aufzug gehören nicht in einen Garten. Ausgeblendet
+           und zugleich auf Erdgeschoss zurückgesetzt (siehe app.js), damit
+           kein Etagenaufschlag aus einer früheren Eingabe unsichtbar
+           weiterwirkt. -->
+      <div class="feld" data-art-nicht="garten">
         <label for="etage">Etage</label>
         <select id="etage" name="etage">
           <option value="eg" selected>Erdgeschoss</option>
@@ -287,7 +409,7 @@
         </select>
       </div>
 
-      <div class="feld">
+      <div class="feld" data-art-nicht="garten">
         <span class="label-block">Aufzug vorhanden?</span>
         <div class="schalter">
           <label class="schalter-option">
