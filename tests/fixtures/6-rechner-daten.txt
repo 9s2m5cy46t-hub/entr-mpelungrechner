@@ -1,0 +1,19 @@
+[GROSS] Neue Anfrage über die Website
+Anfrage-Nummer: A-261027-TEST6
+
+--- RECHNER-DATEN v1 ---
+bereich: entruempelung
+objekt: wohnung
+zimmer: 3
+fuellgrad: voll
+etage: 3plus
+aufzug: nein
+besonderes: elektro; schwerlast
+volumen_m3: 22-42
+personen: 2
+ort: Stöckheim
+--- ENDE ---
+
+Name:     Beispielperson Sechs
+Telefon:  0531 666666
+Ort:      Stöckheim

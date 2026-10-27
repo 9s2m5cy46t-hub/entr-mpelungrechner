@@ -21,6 +21,8 @@
   const zoneAuswahl = document.getElementById('zone');
   const feldKilometer = document.getElementById('feld-kilometer');
   const volumenHinweis = document.getElementById('volumen-hinweis');
+  const volumenFeld = document.getElementById('volumen');
+  const spanneHinweis = document.getElementById('spanne-hinweis');
   const dauerFeld = document.getElementById('dauer');
   const gartenKasten = document.getElementById('garten-schaetzung');
   const ergebnisReferenz = document.getElementById('ergebnis-referenz');
@@ -35,6 +37,9 @@
   const bildEntfernen = document.getElementById('bild-entfernen');
   const aufschluesselungListe = document.getElementById('aufschluesselung');
   const pdfKnopf = document.getElementById('pdf-knopf');
+  const blitzKnopf = document.getElementById('blitz-knopf');
+  const blitzRueckmeldung = document.getElementById('blitz-rueckmeldung');
+  const blitzText = document.getElementById('blitz-text');
   const pdfFehler = document.getElementById('pdf-fehler');
   const neuKnopf = document.getElementById('neu-knopf');
 
@@ -52,6 +57,13 @@
 
   // Aus der Website-Anfrage übernommen. Nur im Arbeitsspeicher.
   let referenz = '';
+  /*
+   * Volumen-Spanne aus der Anfrage (z. B. 22–42 m³). Sie hat kein eigenes
+   * Formularfeld, bestimmt aber die Preisspanne. Sobald jemand das Feld
+   * "Volumen" von Hand ändert, passt die Spanne nicht mehr dazu und wird
+   * verworfen – dann gilt wieder ±20 %.
+   */
+  let volumenSpanne = null;
   let screenshotDatenUrl = null;
 
   // Kurzer Hinweis unter dem Dropdown, damit klar ist, wie gerechnet wird
@@ -224,6 +236,8 @@
       etage: daten.get('etage'),
       aufzug: daten.get('aufzug') === 'ja',
       volumen: Number(daten.get('volumen')) || 0,
+      volumenMin: volumenSpanne ? volumenSpanne.min : 0,
+      volumenMax: volumenSpanne ? volumenSpanne.max : 0,
       zone: daten.get('zone'),
       kilometer: Number(daten.get('kilometer')) || 0,
       abfallarten: daten.getAll('abfallarten'),
@@ -268,11 +282,18 @@
     }
 
     if (aktuellesModell() === 'flaeche') {
+      /*
+       * Gerechnet wird entweder über das Volumen oder über die Wohnfläche –
+       * eines von beiden muss da sein, nicht beides. Eine Anfrage aus der
+       * Website nennt oft nur die Menge („etwa 18–33 m³“) und keine Fläche;
+       * sie darf deshalb nicht an der Pflichtprüfung hängen bleiben.
+       */
+      const hatVolumen = eingaben.volumen > 0;
       pruefeFeld('wohnflaeche',
-        !eingaben.wohnflaeche || eingaben.wohnflaeche < 1,
-        'Bitte die Wohnfläche in m² eintragen.');
+        !hatVolumen && (!eingaben.wohnflaeche || eingaben.wohnflaeche < 1),
+        'Bitte die Wohnfläche in m² eintragen – oder oben das Volumen in m³.');
       pruefeFeld('zimmer',
-        !eingaben.zimmer || eingaben.zimmer < 1,
+        !hatVolumen && (!eingaben.zimmer || eingaben.zimmer < 1),
         'Bitte die Anzahl der Zimmer eintragen.');
     } else {
       pruefeFeld('dauer',
@@ -347,6 +368,16 @@
     planStunden.textContent = formatStunden(letztesErgebnis.personenstunden);
     planDauerLabel.textContent = 'Dauer vor Ort (' + letztesErgebnis.personen + ' Pers.)';
     planDauer.textContent = formatStunden(letztesErgebnis.dauerVorOrt);
+    if (letztesErgebnis.spanneHerkunft === 'volumenspanne') {
+      spanneHinweis.textContent =
+        'Spanne aus der genannten Menge (' + formatVolumen(letztesErgebnis.spanneVolumenMin) +
+        ' bis ' + formatVolumen(letztesErgebnis.spanneVolumenMax) +
+        '), nicht aus pauschalen ±20 %. Gerechnet ist die Mitte.';
+      spanneHinweis.hidden = false;
+    } else {
+      spanneHinweis.hidden = true;
+    }
+
     planSlot.textContent = letztesErgebnis.zeitslotText;
     if (letztesErgebnis.fahrten > 0) {
       planFahrten.textContent = letztesErgebnis.fahrten + ' \u00d7 (' +
@@ -362,6 +393,8 @@
     zeigeAufschluesselung(letztesErgebnis);
 
     pdfFehler.hidden = true;
+    blitzRueckmeldung.textContent = '';
+    blitzText.hidden = true;
     ergebnisBereich.hidden = false;
     ergebnisBereich.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
@@ -408,6 +441,22 @@
   dauerFeld.addEventListener('blur', function () {
     if (artAuswahl.value === 'garten') aktualisiereSchaetzung(true);
   });
+
+  /* ---------------------------------------------------------------------------
+   * Wird das Volumen von Hand geändert, passt die Spanne aus der Anfrage
+   * nicht mehr dazu. Sie wird dann verworfen – ab da gilt wieder ±20 %.
+   *
+   * setzeFeld() schreibt beim Import direkt in .value und löst kein
+   * "input" aus; dieser Weg greift also nur bei echter Eingabe.
+   * ------------------------------------------------------------------------ */
+  if (volumenFeld) {
+    volumenFeld.addEventListener('input', function () {
+      if (volumenSpanne) {
+        volumenSpanne = null;
+        volumenFeld.classList.remove('uebernommen');
+      }
+    });
+  }
 
   /* ---------------------------------------------------------------------------
    * Ergebnis verstecken, sobald eine Eingabe geändert wird
@@ -489,6 +538,7 @@
     setzeFeld('wohnflaeche', f.wohnflaeche);
     setzeFeld('zimmer', f.zimmer);
     setzeFeld('volumen', f.volumen);
+    volumenSpanne = (f.volumenMin && f.volumenMax) ? { min: f.volumenMin, max: f.volumenMax } : null;
     setzeFeld('etage', f.etage);
     setzeFeld('beschreibung', f.beschreibung);
     setzeFeld('kundenname', f.kundenname);
@@ -592,6 +642,56 @@
   });
 
   /* ---------------------------------------------------------------------------
+   * Für Blitzangebot kopieren
+   * -----------------------------------------------------------------------------
+   * Legt die Mengen als Text in die Zwischenablage. Preise stehen bewusst
+   * nicht darin — die kommen in Blitzangebot aus dem eigenen Preisbuch.
+   *
+   * navigator.clipboard braucht einen sicheren Kontext (HTTPS oder
+   * localhost) und die Erlaubnis des Browsers. Klappt es nicht, erscheint
+   * der Text markiert im Feld darunter und lässt sich von Hand kopieren —
+   * lieber ein Umweg als ein Knopf, der nichts tut.
+   * ------------------------------------------------------------------------ */
+  function zeigeRueckmeldung(text) {
+    blitzRueckmeldung.textContent = text;
+  }
+
+  function textZumKopierenZeigen(text) {
+    blitzText.value = text;
+    blitzText.hidden = false;
+    blitzText.focus();
+    blitzText.select();
+  }
+
+  blitzKnopf.addEventListener('click', function () {
+    // Wirkt erst nach einer Berechnung: ohne Ergebnis gibt es keine Mengen.
+    if (!letztesErgebnis) {
+      zeigeRueckmeldung('Bitte zuerst kalkulieren.');
+      return;
+    }
+
+    const text = baueBlitzangebotText(letzteEingaben, letztesErgebnis);
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(
+        function () {
+          zeigeRueckmeldung('Kopiert.');
+          blitzText.hidden = true;
+        },
+        function () {
+          zeigeRueckmeldung('Kopieren hat nicht geklappt – der Text steht unten, ' +
+            'er ist schon markiert.');
+          textZumKopierenZeigen(text);
+        }
+      );
+    } else {
+      zeigeRueckmeldung('Dieser Browser gibt die Zwischenablage nicht frei – ' +
+        'der Text steht unten, er ist schon markiert.');
+      textZumKopierenZeigen(text);
+    }
+  });
+
+  /* ---------------------------------------------------------------------------
    * Nächste Kalkulation
    * ------------------------------------------------------------------------ */
   neuKnopf.addEventListener('click', function () {
@@ -599,6 +699,9 @@
     letztesErgebnis = null;
     formular.reset();
     referenz = '';
+    volumenSpanne = null;
+    blitzRueckmeldung.textContent = '';
+    blitzText.hidden = true;
     ergebnisReferenz.hidden = true;
     importText.value = '';
     importBericht.hidden = true;
