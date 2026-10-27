@@ -1,0 +1,24 @@
+[GROSS] Neue Anfrage über die Website
+Anfrage-Nummer: A-261027-TEST1
+
+--- Zur Einordnung (grob, ersetzt keine Besichtigung) ---
+Bereich:  Entrümpelung
+Größe:    GROSS
+Volumen:  etwa 22–42 m³
+Leute:    ZU ZWEIT – Menge zu groß für einen Tag allein
+Achtung:  Elektrogroßgeräte – getrennte Entsorgung
+Achtung:  Viel Tragen, kein Aufzug
+
+Name:     Beispielperson Eins
+Telefon:  0531 111111
+Ort:      Stöckheim
+Anhänge:  0
+
+Angaben aus dem Auftrags-Chat:
+Was: Eine Wohnung
+Größe: 3 Zimmer
+Wie voll: Sehr voll, viel angesammelt
+Etage: 3. Stock oder höher, ohne Aufzug
+Besonderes: Große Elektrogeräte
+Wann: In den nächsten Wochen
+Wo: Stöckheim

@@ -1,0 +1,22 @@
+[GROSS] Neue Anfrage über die Website
+Anfrage-Nummer: A-261027-TEST3
+
+--- Zur Einordnung (grob, ersetzt keine Besichtigung) ---
+Bereich:  Entrümpelung
+Größe:    GROSS
+Volumen:  etwa 18–33 m³
+Leute:    ZU ZWEIT – Menge zu groß für einen Tag allein
+Achtung:  ACHTUNG Schadstoffe – Fachentsorgung
+
+Name:     Beispielperson Drei
+Telefon:  05331 333333
+Ort:      Wolfenbüttel
+Anhänge:  2
+
+Angaben aus dem Auftrags-Chat:
+Was: Ein Haus
+Wie voll: Normal möbliert
+Etage: Erdgeschoss
+Besonderes: Farben, Öl oder Chemikalien, Sachen, die noch gut sind
+Wann: Ich habe einen festen Termin
+Wo: Wolfenbüttel
