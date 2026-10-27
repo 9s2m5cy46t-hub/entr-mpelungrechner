@@ -173,6 +173,80 @@ const ORT_ZONEN = {
   Gartenarbeiten gehören in eine zweite Kalkulation; darauf weist der Bericht
   hin.
 
+## Weiter in Blitzangebot
+
+Dieser Rechner ermittelt die **Mengen**, das Angebot schreibt **Blitzangebot**
+mit den eigenen Preisen aus dem Preisbuch. Der Ablauf:
+
+```
+Anfrage über die Website
+        ↓   Mailtext einfügen, „Formular ausfüllen"
+Rechner: Mengen, Spanne, Zeitslot
+        ↓   Besichtigung
+Werte nachtragen (Volumen, Dauer, Stückzahlen)
+        ↓   „Für Blitzangebot kopieren"
+Text in Blitzangebot ins Feld für neue Angebote einfügen
+        ↓
+Angebot mit euren Preisen
+```
+
+Der Knopf steht neben „Als PDF zusammenfassen" und erscheint erst, wenn
+gerechnet wurde. Er legt den Text in die Zwischenablage; kurz darunter steht
+„Kopiert.". Gibt der Browser die Zwischenablage nicht frei (ältere Geräte,
+Seite ohne HTTPS), erscheint der Text markiert in einem Feld und lässt sich
+von Hand übernehmen.
+
+### Was im Text steht
+
+```
+Entrümpelung / Entsorgung — Anfrage A-261027-TEST1 — Stöckheim
+
+- Entrümpelung nach Volumen: 32 m³
+- Helfer Arbeitszeit: 19 Std (2 Personen, Fahrzeit enthalten)
+- Trage- / Etagenzuschlag: 1 pausch. (3. Etage, ohne Aufzug)
+- Elektrogroßgeräte fachgerecht entsorgen: ? Stk (Anzahl beim Termin zählen)
+- An- und Abfahrt: 1 pausch. (Stöckheim und direkte Nachbarschaft)
+
+Annahmen: Mengenangabe der Anfrage 22–42 m³, gerechnet mit 32 m³;
+Füllgrad Stark; 2 Personen; Mengen vor der Besichtigung geschätzt.
+Hinweis: 8 Fahrten zum Wertstoffhof mit eigenem Anhänger. Dafür gibt es im
+Preisbuch keine Position – die Fahrzeit steckt in der Arbeitszeit, die
+Gebühren sind nicht enthalten.
+```
+
+**Keine Preise.** Weder Richtwert noch Kundenspanne, weder Stundensatz noch
+Eigenkosten. Von den Kundendaten steht nur der Ort darin – Name und
+Telefonnummer kennt Blitzangebot ohnehin, in einem Angebotsentwurf haben sie
+nichts verloren.
+
+### Die Positionen stammen aus Blitzangebot
+
+Die Bezeichnungen und Einheiten in `js/export.js` sind **wörtlich** aus
+`src/lib/pricebook-templates.ts` von Blitzangebot übernommen (Gewerke
+`entruempelung` und `garten`). Nur so findet Blitzangebot die Position im
+Preisbuch wieder. Ändert sich dort etwas, muss es hier nachgezogen werden –
+`tests/export.test.js` hält die Liste ein zweites Mal vor und schlägt an, wenn
+beide auseinanderlaufen.
+
+**Was keine Position hat, wird nicht gebogen.** Zwei Fälle:
+
+- **Die Fahrten zum Wertstoffhof.** Im Preisbuch gibt es nur
+  „Container-Stellung und Abfuhr" (Stk) – das ist etwas anderes: ein
+  gestellter Container, den ein Entsorger abholt. Diese Position für eigene
+  Anhängerfahrten zu nehmen, hieße eine Leistung anzubieten, die niemand
+  erbringt. Die Zahl der Fahrten steht deshalb als „Hinweis:" dabei.
+- **Die Zahl der Personen.** Keine Leistung, sondern eine Annahme hinter der
+  Arbeitszeit – steht entsprechend dort und in den Annahmen.
+
+### Was vor dem Angebot noch zu tun ist
+
+- **Elektrogroßgeräte stehen mit „?"** – die Einheit ist Stück, die Anfrage
+  nennt aber nie eine Zahl. Beim Termin zählen und im Angebot eintragen.
+- **Die Entsorgungsgebühren sind nicht enthalten.** In der Arbeitszeit steckt
+  die Fahrzeit, nicht das, was der Hof je Anlieferung nimmt.
+- **Bei Gartenaufträgen fehlt die Arbeitszeit**, solange keine Dauer
+  eingetragen ist. Statt 0 Std. steht dann ein Hinweis.
+
 ## GitHub Pages aktivieren
 
 1. Im Repository oben auf **Settings**, links auf **Pages**.
@@ -215,6 +289,7 @@ python3 -m http.server 8000    # dann http://localhost:8000 öffnen
 | `js/import.js` | Anfrage aus der Website-Mail lesen, Ortsnamen zu Zonen |
 | `js/app.js` | Formular auslesen, prüfen, Ergebnis anzeigen |
 | `js/pdf.js` | PDF-Zusammenfassung erzeugen (jsPDF) |
+| `js/export.js` | Text für Blitzangebot, Positionen aus dessen Preisbuch |
 | `.nojekyll` | Nötig für GitHub Pages |
 | `tests/` | Tests mit Nodes eingebautem Testlauf, ohne Abhängigkeit |
 

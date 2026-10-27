@@ -37,6 +37,9 @@
   const bildEntfernen = document.getElementById('bild-entfernen');
   const aufschluesselungListe = document.getElementById('aufschluesselung');
   const pdfKnopf = document.getElementById('pdf-knopf');
+  const blitzKnopf = document.getElementById('blitz-knopf');
+  const blitzRueckmeldung = document.getElementById('blitz-rueckmeldung');
+  const blitzText = document.getElementById('blitz-text');
   const pdfFehler = document.getElementById('pdf-fehler');
   const neuKnopf = document.getElementById('neu-knopf');
 
@@ -390,6 +393,8 @@
     zeigeAufschluesselung(letztesErgebnis);
 
     pdfFehler.hidden = true;
+    blitzRueckmeldung.textContent = '';
+    blitzText.hidden = true;
     ergebnisBereich.hidden = false;
     ergebnisBereich.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
@@ -637,6 +642,56 @@
   });
 
   /* ---------------------------------------------------------------------------
+   * Für Blitzangebot kopieren
+   * -----------------------------------------------------------------------------
+   * Legt die Mengen als Text in die Zwischenablage. Preise stehen bewusst
+   * nicht darin — die kommen in Blitzangebot aus dem eigenen Preisbuch.
+   *
+   * navigator.clipboard braucht einen sicheren Kontext (HTTPS oder
+   * localhost) und die Erlaubnis des Browsers. Klappt es nicht, erscheint
+   * der Text markiert im Feld darunter und lässt sich von Hand kopieren —
+   * lieber ein Umweg als ein Knopf, der nichts tut.
+   * ------------------------------------------------------------------------ */
+  function zeigeRueckmeldung(text) {
+    blitzRueckmeldung.textContent = text;
+  }
+
+  function textZumKopierenZeigen(text) {
+    blitzText.value = text;
+    blitzText.hidden = false;
+    blitzText.focus();
+    blitzText.select();
+  }
+
+  blitzKnopf.addEventListener('click', function () {
+    // Wirkt erst nach einer Berechnung: ohne Ergebnis gibt es keine Mengen.
+    if (!letztesErgebnis) {
+      zeigeRueckmeldung('Bitte zuerst kalkulieren.');
+      return;
+    }
+
+    const text = baueBlitzangebotText(letzteEingaben, letztesErgebnis);
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(
+        function () {
+          zeigeRueckmeldung('Kopiert.');
+          blitzText.hidden = true;
+        },
+        function () {
+          zeigeRueckmeldung('Kopieren hat nicht geklappt – der Text steht unten, ' +
+            'er ist schon markiert.');
+          textZumKopierenZeigen(text);
+        }
+      );
+    } else {
+      zeigeRueckmeldung('Dieser Browser gibt die Zwischenablage nicht frei – ' +
+        'der Text steht unten, er ist schon markiert.');
+      textZumKopierenZeigen(text);
+    }
+  });
+
+  /* ---------------------------------------------------------------------------
    * Nächste Kalkulation
    * ------------------------------------------------------------------------ */
   neuKnopf.addEventListener('click', function () {
@@ -645,6 +700,8 @@
     formular.reset();
     referenz = '';
     volumenSpanne = null;
+    blitzRueckmeldung.textContent = '';
+    blitzText.hidden = true;
     ergebnisReferenz.hidden = true;
     importText.value = '';
     importBericht.hidden = true;
