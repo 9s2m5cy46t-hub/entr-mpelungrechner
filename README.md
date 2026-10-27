@@ -56,36 +56,89 @@ Nutzt sie das Modell `stunden`, ist an der Rechenlogik nichts zu ändern.
 
 ## Anfrage aus der Website übernehmen
 
-Oben auf der Seite die Karte „Anfrage aus der Website übernehmen"
-aufklappen, den **Text** der Benachrichtigungsmail einfügen, auf
-„Formular ausfüllen" tippen. Übernommen werden Anfrage-Nummer, Name,
-Telefon, Ort (samt Anfahrtszone), Auftragsart, Zimmer bzw. Wohnfläche,
-Füllgrad, Etage, Abfallarten und das Volumen. Bei Gartenanfragen dazu die
-angekreuzten Arbeiten, Gartengröße, Zustand und der Grünschnitt.
+Oben auf der Seite die Karte „Anfrage aus der Website übernehmen" aufklappen,
+den **Text** der Benachrichtigungsmail einfügen, auf „Formular ausfüllen"
+tippen.
 
-Die Auftragsart kommt aus der Zeile **`Bereich:`**, die die Website in der
-Mail mitschickt (`Garten`, `Entrümpelung` oder `Entrümpelung + Garten`) –
-das ist eine Tatsache aus der Mail und muss nicht geraten werden. Fehlt die
-Zeile, etwa in älteren Mails oder beim klassischen Formular, greifen wie
-bisher Stichwörter.
+Der Import nimmt zwei Wege:
 
-Danach steht ein Bericht in zwei Teilen: **Übernommen** und **Bitte
-prüfen**. Die ausgefüllten Felder sind braun hervorgehoben. Alles bleibt
-änderbar – der Import ist eine Vorbelegung, keine Wahrheit.
+**1. Strukturierter Block (bevorzugt).** Steht in der Mail ein Block
 
-**Warum der Text und nicht der Screenshot:** Ein Bild müsste per
-Texterkennung gelesen werden. Auf dunklen Handy-Screenshots verwechselt
-die 0 mit dem O und die 5 mit dem S – bei einer Telefonnummer oder
-„10–18 m³" sind falsche Zahlen schlimmer als gar keine, und die 15 MB
-Sprachdaten kämen obendrauf. Aus dem Text lässt sich alles exakt lesen,
-ohne jede Bibliothek.
+```
+--- RECHNER-DATEN v1 ---
+bereich: entruempelung
+objekt: wohnung
+zimmer: 3
+fuellgrad: voll
+etage: 3plus
+aufzug: nein
+besonderes: elektro; schwerlast
+volumen_m3: 22-42
+personen: 2
+ort: Stöckheim
+--- ENDE ---
+```
+
+dann wird er gelesen und der Fließtext ignoriert. Feste Schlüssel statt
+deutscher Sätze: nichts zu raten. **Eine fehlende Zeile heißt „unbekannt" und
+wird nicht ergänzt.** Mehrere Werte in einer Zeile mit `; ` trennen.
+
+Mögliche Werte: `bereich` entruempelung/garten/beides · `objekt`
+wohnung/haus/keller/garage/moebel/anderes · `fuellgrad` leer/normal/voll/unbekannt ·
+`etage` eg/1-2/3plus/unbekannt · `aufzug` ja/nein/unbekannt · `besonderes`
+elektro/bauschutt/schadstoffe/schwerlast/verwertbares/sonstiges ·
+`garten_arbeiten` rasen/hecke/laub/gruenschnitt_weg/instandsetzung/aufloesung/sonstiges ·
+`garten_groesse` und `garten_zustand` wie im Formular · `gruenschnitt`
+mitnehmen/bleibt/unbekannt.
+
+**2. Fließtext (ältere Mails).** Ohne den Block gilt der bisherige Weg über die
+Zeilen „Name:", „Ort:", „Was:", „Etage:" und so weiter.
+
+### Was übernommen wird
+
+| Aus der Mail | Wird zu |
+|---|---|
+| `Etage: Erdgeschoss` | Erdgeschoss |
+| `Etage: 1. oder 2. Stock, ohne Aufzug` | **Etage 2**, Notiz „mit 2 gerechnet" |
+| `Etage: 3. Stock oder höher, ohne Aufzug` | **Etage 3** + Warnung „mindestens 3. Etage, vor Ort prüfen" |
+| `Etage: Mit Aufzug` | Erdgeschoss, Aufzug ja |
+| `Leute: ALLEIN …` | 1 Person |
+| `Leute: ZU ZWEIT …` | 2 Personen |
+| `Volumen: etwa 22–42 m³` | 32 m³ ins Feld, Spanne 22–42 bestimmt den Preis von–bis |
+| `Ort: Stöckheim` | Anfahrtszone 1 |
+
+**Warum Etage 3 und nicht „höher":** „3. Stock oder höher" könnte den dritten
+Stock meinen (+45 % auf die Arbeit) oder den sechsten (+90 %). Ein zu hoher
+Preis kostet den Auftrag, ohne dass jemand nachfragt – also die untere Kante
+nehmen und vor Ort prüfen. Die Warnung steht im Bericht.
+
+**Warum die Mitte der Volumenspanne:** Der Richtwert soll der wahrscheinliche
+Fall sein, nicht der schlimmste. Die Obergrenze steht ohnehin als „bis" daneben.
+Ändert ihr das Volumenfeld von Hand, passt die Spanne aus der Mail nicht mehr
+dazu – sie wird dann verworfen, und es gilt wieder ±20 %.
+
+### Warnungen, die nicht übergangen werden
+
+- `Sachen, die noch gut sind` → „Verwertbares, bei Besichtigung gegenrechnen"
+- `Sehr Schweres` → „Schwerlast, mindestens 2 Personen"
+- `Etwas anderes: <Text>` → der Text selbst, ungekürzt
+- Entrümpelung **ohne Volumen und ohne Wohnfläche** → „KEINE GRUNDLAGE"; ohne
+  eines von beiden gibt es keinen belastbaren Preis
+
+Danach steht ein Bericht in zwei Teilen: **Übernommen** und **Bitte prüfen**.
+Die ausgefüllten Felder sind braun hervorgehoben. Alles bleibt änderbar – der
+Import ist eine Vorbelegung, keine Wahrheit.
+
+**Warum der Text und nicht der Screenshot:** Ein Bild müsste per Texterkennung
+gelesen werden. Auf dunklen Handy-Screenshots verwechselt die 0 mit dem O und
+die 5 mit dem S – bei einer Telefonnummer oder „10–18 m³" sind falsche Zahlen
+schlimmer als gar keine. Aus dem Text lässt sich alles exakt lesen, ohne jede
+Bibliothek.
 
 Der Screenshot kann trotzdem angehängt werden: er wird auf dem Bildschirm
-angezeigt, damit man die Angaben abgleichen kann, ohne zwischen den Apps
-zu wechseln. Ins PDF kommt er nur, wenn das Häkchen gesetzt ist – dann als
-eigene, rot beschriftete Seite. Grund: die Mail enthält interne
-Einordnungen („ALLEIN MACHBAR", „eigener Container nötig?"), die kein
-Kunde sehen soll. Ein PDF mit Screenshot ist für die eigene Ablage.
+angezeigt, damit man die Angaben abgleichen kann, ohne zwischen den Apps zu
+wechseln. Ins PDF kommt er nur mit Häkchen – dann als eigene, rot beschriftete
+Seite, weil die Mail interne Einordnungen enthält.
 
 ### Ortsnamen ergänzen
 
@@ -103,24 +156,22 @@ const ORT_ZONEN = {
 
 ### Was der Import nicht kann
 
-- **Die Wohnfläche fehlt in der Mail.** Dort stehen nur Zimmer. Aus
-  2 Zimmern werden grob 50 m² geschätzt (`quadratmeterProZimmer`, 25 m²)
-  und ausdrücklich als zu prüfen gemeldet. Diese Zahl bestimmt bei der
-  Entrümpelung den Arbeitsanteil – also korrigieren, sobald ihr die Wohnung
-  gesehen habt.
-- **Volumenspannen werden nach oben gerundet.** Aus „etwa 10–18 m³" wird
-  18 m³. Zu wenig kalkulierte Fahrten kosten euch sicher Geld, zu viele
-  kosten den Auftrag nur vielleicht.
-- **Die Anhänge der Anfrage (Fotos) kann das Werkzeug nicht sehen.** Es
-  weist nur darauf hin, dass es welche gibt.
-- **Wie viel Grünschnitt es ist, steht nicht in der Mail.** Aus „Hecke
-  schneiden" folgt keine Kubikmeterzahl. Das Volumen bleibt deshalb leer und
-  wird angemahnt, statt geraten zu werden – daran hängen die Fahrten und
-  damit ein guter Teil des Preises. Ein voller Anhänger sind etwa 4 m³.
-- **„Entrümpelung + Garten" wird nicht zu einem Auftrag zusammengezogen.**
-  Das Werkzeug rechnet einen Auftrag. Eingestellt wird zunächst die
-  Entrümpelung, die Garten-Angaben werden trotzdem übernommen – für die
-  zweite Kalkulation, auf die der Hinweis ausdrücklich hinweist.
+- **Die Wohnfläche steht selten in der Mail.** Nennt sie Zimmer, werden daraus
+  grob 25 m² je Zimmer geschätzt. Liegt ein Volumen vor, geht diese Schätzung
+  **nicht** in den Preis ein – gerechnet wird dann über das Volumen, und die
+  Fläche steht nur im PDF. Ohne Volumen ist sie die Grundlage und muss geprüft
+  werden.
+- **Volumenspannen werden nicht enger.** Aus „etwa 18–33 m³" wird ein Richtwert
+  bei 25,5 m³ und eine Kundenspanne von 840 bis 1.380 €. Diese Spanne ist breit,
+  weil die Angabe breit ist – das ist ehrlicher, als sie schmalzurechnen.
+- **Die Anhänge der Anfrage (Fotos) kann das Werkzeug nicht sehen.** Es weist
+  nur darauf hin, dass es welche gibt.
+- **Gartenarbeiten bekommen kein Volumen.** Aus „Hecke schneiden" folgt keine
+  Kubikmeterzahl. Soll Grünschnitt mit, wird daran erinnert, das Volumen selbst
+  zu schätzen – davon hängen die Fahrten ab.
+- **Bei „Beides"** rechnet dieses Werkzeug nur die Entrümpelung. Die
+  Gartenarbeiten gehören in eine zweite Kalkulation; darauf weist der Bericht
+  hin.
 
 ## GitHub Pages aktivieren
 
@@ -132,6 +183,17 @@ const ORT_ZONEN = {
 Jeder weitere Push auf `main` aktualisiert die Seite automatisch. Die Datei
 `.nojekyll` sorgt dafür, dass die Dateien unverändert ausgeliefert werden –
 nicht löschen.
+
+## Tests
+
+```bash
+node --test tests/
+```
+
+Braucht nichts außer Node. Die Browser-Dateien werden mit `node:vm` geladen
+(`tests/laden.js`) – sie bleiben dadurch reine `<script>`-Dateien ohne
+`module.exports`. Die Beispielmails in `tests/fixtures/` sind erfunden,
+es stehen keine echten Kundendaten darin.
 
 ## Lokal ausprobieren
 
@@ -154,6 +216,7 @@ python3 -m http.server 8000    # dann http://localhost:8000 öffnen
 | `js/app.js` | Formular auslesen, prüfen, Ergebnis anzeigen |
 | `js/pdf.js` | PDF-Zusammenfassung erzeugen (jsPDF) |
 | `.nojekyll` | Nötig für GitHub Pages |
+| `tests/` | Tests mit Nodes eingebautem Testlauf, ohne Abhängigkeit |
 
 ## Preise ändern
 
@@ -202,82 +265,78 @@ gewählter Auftragsart unterschiedlich viel.
 
 ### Rechenwege im Detail
 
-**Entrümpelung**
+**Entrümpelung – zwei Wege, die bei gleicher Menge dasselbe ergeben**
 
-1. `Grundpauschale + Wohnfläche × Preis pro m²`
-2. `× Vermüllungs-Multiplikator` (wirkt auf Pauschale und Flächenanteil,
-   nicht auf Gebühren und Nebenkosten)
-3. `+ Kellerabteil`, dazu als Nebenkosten Fahrten, Anfahrtszone und
-   Zusatzkosten
-4. Falls kein Aufzug: `× (1 + Etagen über EG × 15 %)` auf die Arbeit vor Ort
+Liegt ein **Volumen** vor (aus der Anfrage oder selbst eingetragen):
 
-Beispiel: 60 m², 3. Etage ohne Aufzug, mittel, Keller, Zone 1 →
-26 m³ Müll → 7 Fahrten → Richtwert 1.275,40 € → Kundenspanne
-**„ca. 1.020–1.530 € VB"**, Zeitslot 11 Std. ≈ 1,5 Tage.
+1. `Grundpauschale + Volumen × 10,50 € je m³`
+2. `+ Kellerabteil`, dazu als Nebenkosten Fahrten, Anfahrtszone, Zusatzkosten
+3. Falls kein Aufzug: `× (1 + Etagen über EG × 15 %)` auf die Arbeit vor Ort
+4. Arbeitszeit: `Volumen ÷ 5 m³ je Personenstunde`, plus 0,5 Std. ohne Aufzug
 
-Vor der Umstellung auf echte Transportkosten kam derselbe Auftrag auf
-720,65 €. Die Differenz von rund 555 € sind die sieben Fahrten zum
-Wertstoffhof – die fielen vorher unter den Tisch.
+Der **Vermüllungsgrad wird hier nicht noch einmal aufgeschlagen**. Wer 30 m³
+nennt, hat den vollen Schrank schon mitgezählt; ihn zusätzlich zu
+multiplizieren hieße, dieselbe Menge zweimal zu berechnen.
 
-**Stundenauftrag (Abbruch, Bau, Sonstiges)**
+Ohne Volumen gilt unverändert der **Flächenweg**:
+
+1. `Grundpauschale + Wohnfläche × 3,50 € je m²`
+2. `× Vermüllungs-Multiplikator` (auf Pauschale und Flächenanteil)
+3. `+ Kellerabteil`, dazu dieselben Nebenkosten
+4. Falls kein Aufzug: derselbe Etagenaufschlag
+5. Arbeitszeit: `Wohnfläche ÷ 15 m² je Stunde × Vermüllungsfaktor`
+
+**Die beiden Konstanten werden abgeleitet, nicht gesetzt:**
+
+```
+preisProKubikmeter          = proQuadratmeter / kubikmeterProQuadratmeter
+                            = 3,50 € / 0,333 m³  =  10,50 € je m³
+kubikmeterProPersonenstunde = quadratmeterProStunde × kubikmeterProQuadratmeter
+                            = 15 m² × 0,333 m³    =  5 m³ je Personenstunde
+```
+
+Damit kostet dieselbe Arbeit gleich viel, egal über welchen Weg sie gerechnet
+wird. **Probe:** 60 m², leicht, 20 m³, EG ergibt in beiden Wegen 290 € Arbeit
+und 4 Personenstunden. Der Test `tests/import.test.js` prüft das.
+
+Beispiel Flächenweg: 60 m², 3. Etage ohne Aufzug, mittel, Keller, Zone 1 →
+26 m³ Müll → 7 Fahrten → Richtwert 1.275,40 €, Kundenspanne
+**„ca. 1.020–1.530 € VB"**.
+
+Beispiel Volumenweg: 22–42 m³ aus der Anfrage, 3. Etage ohne Aufzug,
+2 Personen, Zone 1 → gerechnet mit 32 m³ → 8 Fahrten → Richtwert 1.353,20 €,
+Kundenspanne **„ca. 1.010–1.790 € VB"**.
+
+**Stundenauftrag (Garten, Abbruch, Bau, Sonstiges)**
 
 1. `Personenstunden = Dauer vor Ort × Anzahl Personen`
-2. `Arbeitskosten = Personenstunden × Stundensatz`, dazu der
-   Erschwernis-Aufschlag
+2. `Arbeitskosten = Personenstunden × Stundensatz`, dazu der Erschwernis-Aufschlag
 3. `+ Grundpauschale`, dazu als Nebenkosten Material (+ 10 % Beschaffung),
    Fahrten, Anfahrtszone und Zusatzkosten
 4. Falls kein Aufzug: `× (1 + Etagen über EG × 15 %)` auf die Arbeit vor Ort
-
-Beispiel: Treppe bauen, 2 Personen an 2 Tagen (16 Std. vor Ort), mittlere
-Erschwernis, 900 € Material, 3 m³ Altholz, 40 € Anhängermiete, Zone 1 →
-Richtwert 3.219,75 € → Kundenspanne **„ca. 2.580–3.860 € VB"**,
-Zeitslot 22 Std. ≈ 3 Tage.
 
 **Wichtig zur Eingabe:** „Dauer vor Ort" ist die Zeit, die ihr dort seid –
 nicht die Personenstunden. Zwei Leute an zwei Tagen sind **16 Stunden**, nicht
 32. Die Personenstunden rechnet das Werkzeug selbst.
 
-**Gartenarbeiten**
+### Wie die Kundenspanne entsteht
 
-Gerechnet wird wie beim Stundenauftrag – **derselbe Stundensatz, dieselbe
-Grundpauschale, dieselbe Anfahrt**. Es gibt bewusst keinen eigenen
-Garten-Stundensatz: Ein zweiter Satz würde über die Zeit vom ersten
-abweichen, und dann kostet dieselbe Arbeit je nach gewählter Auftragsart
-unterschiedlich viel.
+Normalerweise: **Richtwert ±20 %**, auf 10 € gerundet.
 
-Der Unterschied liegt nur davor: Die **Dauer wird vorgeschlagen**, statt sie
-jedes Mal im Kopf zu überschlagen.
+Nennt die Anfrage dagegen eine **Mengenspanne** („etwa 22–42 m³"), entsteht die
+Preisspanne aus dieser Menge: Die Rechnung läuft zweimal mehr, einmal mit der
+unteren und einmal mit der oberen Zahl.
 
-1. Basisstunden der angekreuzten Arbeiten addieren (`garten.basisstunden`)
-2. `× Faktor Gartengröße` (`garten.faktorGroesse`)
-3. `× Faktor Zustand` (`garten.faktorZustand`)
-4. `÷ Anzahl Personen`, dann auf die nächste halbe Stunde aufrunden
-5. Das Ergebnis steht im Feld „Dauer vor Ort" – von dort an rechnet alles
-   wie beim Stundenauftrag weiter
+```
+Richtwert = Preis bei der MITTE    (32 m³ → 1.353,20 €)
+von       = Preis bei min          (22 m³ → 1.010 €)
+bis       = Preis bei max          (42 m³ → 1.790 €)
+```
 
-Schritt 4 ist der wichtigste: Die Basisstunden sind die **Arbeit**, die
-anfällt. „Dauer vor Ort" ist die **Zeit, die ihr dort steht**. Zwei Leute
-sind halb so lange da. Ohne das Teilen würde die Arbeit doppelt gezählt.
-
-**Alle Garten-Zahlen stehen noch auf `null`** – dreizehn Werte in
-`PREISE.garten`. Solange eine davon fehlt, schlägt das Werkzeug **nichts**
-vor: Der Kasten über dem Dauerfeld sagt, welche Zahl fehlt, und die Dauer
-wird wie bei Abbruch und Bau selbst eingetragen. Gerechnet wird normal
-weiter, nur eben ohne Vorschlag. Geraten wird nichts.
-
-Die Zahlen am einfachsten so bekommen: beim nächsten Gartenauftrag
-mitschreiben, wie lange **eine Person** für jede Arbeit gebraucht hat, und
-die Werte eintragen. Praktisch ist, bei `faktorGroesse` und `faktorZustand`
-je eine Stufe auf `1.0` zu setzen – die Basisstunden sind dann genau die
-Stunden für diese Stufe.
-
-Der Vorschlag ist immer überschreibbar. Eine selbst eingetragene Zahl wird
-nie ersetzt; der Vorschlag steht dann nur daneben im Kasten.
-
-**Was wir im Garten nicht machen:** keine Baumfällung, kein Pflaster- und
-Terrassenbau, keine Zäune. Angemeldet sind einfache Gartenpflege- und
-Hilfsarbeiten – dasselbe, was auf der Website steht. Ein Angebot über etwas
-anderes gehört nicht aus diesem Werkzeug heraus.
+**Der Richtwert ist die Mitte, nicht die Obergrenze.** Die Obergrenze ist das
+„bis" und steht ohnehin daneben. Ein Richtwert an der Obergrenze wäre im
+Schnitt zu teuer und kostet Aufträge, die sich gelohnt hätten. Im Ergebnis
+steht ein Hinweis, woher die Spanne kommt.
 
 ### Anfahrtszonen
 
