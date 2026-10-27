@@ -187,7 +187,7 @@ nicht löschen.
 ## Tests
 
 ```bash
-node --test tests/
+node --test
 ```
 
 Braucht nichts außer Node. Die Browser-Dateien werden mit `node:vm` geladen

@@ -1,7 +1,7 @@
 /**
  * Tests für den Mail-Import und die Entrümpelungs-Rechnung.
  *
- * Lauf: node --test tests/
+ * Lauf: node --test   (findet tests/ von selbst)
  * Ohne zusätzliche Abhängigkeit – node:test und node:vm reichen.
  */
 
