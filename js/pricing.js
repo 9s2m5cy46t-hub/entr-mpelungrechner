@@ -403,7 +403,26 @@ function formatStunden(stunden) {
  *   teile     Klartext, woraus sich die Schätzung zusammensetzt
  *
  * stunden === null ist kein Fehler: dann wird die Dauer selbst eingetragen.
+ *
+ * fehlendeGartenwerte() listet unabhängig von der Auswahl alle Zahlen auf, die
+ * in PREISE.garten noch auf null stehen – je Gruppe eine Zeile fürs Formular.
  * -------------------------------------------------------------------------- */
+function fehlendeGartenwerte() {
+  const g = PREISE.garten;
+  function offen(zahlen, texte) {
+    return Object.keys(zahlen).filter(function (k) {
+      return typeof zahlen[k] !== 'number';
+    }).map(function (k) { return texte[k]; });
+  }
+  const gruppen = [
+    ['Basisstunden fehlen für: ', offen(g.basisstunden, LABELS.gartenArbeiten)],
+    ['Faktor Gartengröße fehlt für: ', offen(g.faktorGroesse, LABELS.gartenGroesse)],
+    ['Faktor Zustand fehlt für: ', offen(g.faktorZustand, LABELS.gartenZustand)],
+  ];
+  return gruppen.filter(function (gruppe) { return gruppe[1].length; })
+    .map(function (gruppe) { return gruppe[0] + gruppe[1].join(', '); });
+}
+
 function schaetzeGartenstunden(eingaben) {
   const g = PREISE.garten;
   const arbeiten = Array.isArray(eingaben.gartenArbeiten) ? eingaben.gartenArbeiten : [];
@@ -483,7 +502,8 @@ function schaetzeGartenstunden(eingaben) {
  *
  *   ARBEIT VOR ORT  (bekommt den Etagenaufschlag, falls kein Aufzug)
  *     Grundpauschale
- *     + Entrümpelung: Wohnfläche × Preis pro m², mal Vermüllungsgrad
+ *     + Entrümpelung: Volumen × Preis pro m³, ohne Volumen stattdessen
+ *       Wohnfläche × Preis pro m², mal Vermüllungsgrad
  *       Stundenauftrag: Dauer × Personen × Stundensatz, mal Erschwernis
  *     + Kellerabteil (nur Entrümpelung)
  *
@@ -497,11 +517,12 @@ function schaetzeGartenstunden(eingaben) {
  *     + Zusatzkosten (Anhängermiete, Werkzeug, Halteverbotszone)
  *
  *   Richtwert = Arbeit × (1 + Etagen über EG × 15 %) + Nebenkosten
- *   Kundenspanne = Richtwert ±20 %, auf 10 € gerundet
+ *   Kundenspanne = Preis bei Volumen min bis max, ohne Spanne Richtwert ±20 %,
+ *                  auf 10 € gerundet
  *
  * Anzahl Fahrten: Volumen ÷ Kapazität pro Fahrt, aufgerundet. Das Volumen
- * kommt bei der Entrümpelung aus der Wohnfläche, beim Stundenauftrag gibt
- * man es selbst an.
+ * ist angegeben; nur bei der Entrümpelung ohne Angabe kommt es aus der
+ * Wohnfläche.
  *
  * Rückgabe: Richtwert, Kundenspanne, Personenstunden, Dauer vor Ort,
  * Kalender-Zeitslot, Volumen, Fahrten und die Aufschlüsselung als Liste.
@@ -737,12 +758,12 @@ function berechnePreis(eingaben) {
     zeitslotText: formatZeitslot(zeitslot),
     volumen: volumen,
     volumenHerkunft: volumenHerkunft,
-    // "volumenspanne" = aus der genannten Mengenspanne, sonst "prozent"
     // Arbeit vor Ort vor dem Etagenaufschlag. Nützlich zum Nachvollziehen
     // und für Tests, die nicht an Beschriftungen hängen sollen.
     arbeitVorEtage: arbeit,
     etagenZuschlag: etagenZuschlag,
     nebenkosten: neben,
+    // "volumenspanne" = aus der genannten Mengenspanne, sonst "prozent"
     spanneHerkunft: ausVolumenspanne ? 'volumenspanne' : 'prozent',
     spanneVolumenMin: ausVolumenspanne ? spanneMin : 0,
     spanneVolumenMax: ausVolumenspanne ? spanneMax : 0,

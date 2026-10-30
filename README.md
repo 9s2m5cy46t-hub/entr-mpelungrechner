@@ -39,7 +39,7 @@ einen Server gesendet.
 
 | Art | Rechenweg | Pflichtfelder |
 |---|---|---|
-| **Entrümpelung** | Wohnfläche × Preis pro m², mal Vermüllungsgrad | Wohnfläche, Zimmer |
+| **Entrümpelung** | Volumen × Preis pro m³; ohne Volumen Wohnfläche × Preis pro m², mal Vermüllungsgrad | Volumen, oder Wohnfläche und Zimmer |
 | **Gartenarbeiten** | Arbeitszeit × Stundensatz, Dauer wird vorgeschlagen | Arbeiten, Dauer vor Ort |
 | **Abbruch / Rückbau** | Arbeitszeit × Stundensatz, mal Erschwernis | Dauer vor Ort |
 | **Bau / Montage** | wie Abbruch, zusätzlich Material | Dauer vor Ort |
@@ -79,9 +79,11 @@ ort: Stöckheim
 --- ENDE ---
 ```
 
-dann wird er gelesen und der Fließtext ignoriert. Feste Schlüssel statt
-deutscher Sätze: nichts zu raten. **Eine fehlende Zeile heißt „unbekannt" und
-wird nicht ergänzt.** Mehrere Werte in einer Zeile mit `; ` trennen.
+dann bestimmt allein er, was gerechnet wird. Feste Schlüssel statt deutscher
+Sätze: nichts zu raten. **Eine fehlende Zeile heißt „unbekannt" und wird nicht
+ergänzt.** Mehrere Werte in einer Zeile mit `; ` trennen. Aus dem Rest der Mail
+kommen nur Angaben, die der Block nicht kennt: Anfrage-Nummer, Name, Telefon und
+der Hinweis auf Anhänge.
 
 Mögliche Werte: `bereich` entruempelung/garten/beides · `objekt`
 wohnung/haus/keller/garage/moebel/anderes · `fuellgrad` leer/normal/voll/unbekannt ·
@@ -129,6 +131,10 @@ Danach steht ein Bericht in zwei Teilen: **Übernommen** und **Bitte prüfen**.
 Die ausgefüllten Felder sind braun hervorgehoben. Alles bleibt änderbar – der
 Import ist eine Vorbelegung, keine Wahrheit.
 
+**Jeder Import leert zuerst das Formular.** Sonst rechnet, was die neue Mail
+nicht nennt, mit den Werten der vorigen weiter. Von Hand Eingetragenes geht
+dabei verloren – also erst importieren, dann ergänzen.
+
 **Warum der Text und nicht der Screenshot:** Ein Bild müsste per Texterkennung
 gelesen werden. Auf dunklen Handy-Screenshots verwechselt die 0 mit dem O und
 die 5 mit dem S – bei einer Telefonnummer oder „10–18 m³" sind falsche Zahlen
@@ -172,6 +178,10 @@ const ORT_ZONEN = {
 - **Bei „Beides"** rechnet dieses Werkzeug nur die Entrümpelung. Die
   Gartenarbeiten gehören in eine zweite Kalkulation; darauf weist der Bericht
   hin.
+- **Bei „Mit Aufzug" kennt es die Etage nicht.** Die Mail nennt keine, im
+  Formular und im PDF steht deshalb Erdgeschoss. Auf den Preis wirkt das nicht,
+  mit Aufzug gibt es keinen Etagenaufschlag.
+- **Nennt die Mail keine Leute,** bleibt es bei der Vorbelegung von 2 Personen.
 
 ## Weiter in Blitzangebot
 
@@ -268,6 +278,10 @@ Braucht nichts außer Node. Die Browser-Dateien werden mit `node:vm` geladen
 (`tests/laden.js`) – sie bleiben dadurch reine `<script>`-Dateien ohne
 `module.exports`. Die Beispielmails in `tests/fixtures/` sind erfunden,
 es stehen keine echten Kundendaten darin.
+
+`tests/formular.test.js` führt das echte `js/app.js` auf dem echten `index.html`
+aus (`tests/dom-attrappe.js`) und prüft so den Weg Mail → Formular → Ergebnis.
+Optik und Layout prüft das nicht, dafür bleibt der Blick in den Browser.
 
 ## Lokal ausprobieren
 
@@ -435,9 +449,8 @@ Fahrten  × 15 €                         =  Anlieferungsgebühren
 Fahrten  × 0,75 Std. × Anzahl Personen  =  Fahrzeit (kostet Stundensatz)
 ```
 
-Bei der Entrümpelung kommt das Volumen aus der Wohnfläche
-(0,33 m³ je m², mal Vermüllungsfaktor), beim Stundenauftrag gibt man es
-selbst an.
+Das Volumen ist das angegebene. Nur bei der Entrümpelung ohne Angabe kommt es
+aus der Wohnfläche (0,33 m³ je m², mal Vermüllungsfaktor).
 
 Die Checkboxen bei „Was muss entsorgt werden?" sind dadurch **keine
 Preispauschalen mehr**. Sie stehen im PDF und kosten nur dort extra, wo es
@@ -482,8 +495,8 @@ nicht weiterhilft.
   bewusst niedriger als die Vermüllungsgrade, weil man die Stunden beim
   Stundenauftrag selbst schätzt.
 - **Garten-Basisstunden und -Faktoren** (`garten.*`) – stehen alle auf `null`,
-  weil niemand sie geraten hat. Solange sie fehlen, wird die Dauer bei
-  Gartenaufträgen selbst eingetragen. Die ersten echten Aufträge liefern die
+  weil niemand sie geraten hat. Solange sie fehlen, listet das Formular sie auf,
+  und die Dauer wird bei Gartenaufträgen selbst eingetragen. Die ersten echten Aufträge liefern die
   Zahlen.
 
 ### Noch offen: Abfallrecht

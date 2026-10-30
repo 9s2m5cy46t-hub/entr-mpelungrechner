@@ -199,9 +199,10 @@ function erkenneAbfallarten(text) {
   return arten;
 }
 
-/** "etwa 10–18 m³" -> 18 (obere Grenze, damit nicht zu knapp kalkuliert wird) */
+/** "etwa 10–18 m³" -> { min: 10, max: 18, mitte: 14 } */
 function erkenneVolumen(text) {
-  const bereinigt = text.replace(/,/g, '.');
+  // Die Einheit zuerst weg: die 3 aus "m3" wäre sonst die untere Grenze.
+  const bereinigt = text.replace(/m\s*[3³]/gi, '').replace(/,/g, '.');
   const zahlen = (bereinigt.match(/\d+(?:\.\d+)?/g) || []).map(Number).filter(function (n) {
     return n > 0 && n < 500;
   });
@@ -440,6 +441,55 @@ function leseRechnerDaten(mailtext) {
   return { felder: felder, notizen: notizen, warnungen: warnungen };
 }
 
+/**
+ * Alle "Label: Wert"-Zeilen sammeln. Labels können doppelt vorkommen (die Mail
+ * hat zweimal "Größe:" — einmal die Einordnung "MITTEL", einmal "2 Zimmer"),
+ * deshalb wird pro Label eine Liste geführt.
+ */
+function leseZeilen(mailtext) {
+  const werte = {};
+  mailtext.split(/\r?\n/).forEach(function (zeile) {
+    const treffer = zeile.match(/^\s*([A-Za-zÄÖÜäöüß\- .]{2,30}?)\s*:\s*(.+?)\s*$/);
+    if (!treffer) return;
+    const label = treffer[1].toLowerCase().replace(/\s+/g, ' ').trim();
+    if (!werte[label]) werte[label] = [];
+    werte[label].push(treffer[2]);
+  });
+  return werte;
+}
+
+/**
+ * Der Block kennt weder Kontakt noch Anfrage-Nummer noch Anhänge – die stehen
+ * im Rest der Mail und gingen sonst still verloren. Nur diese Angaben kommen
+ * von dort. Alles, was den Preis bestimmt, bleibt allein Sache des Blocks:
+ * Fehlt dort eine Zeile, gilt sie als unbekannt.
+ */
+function ergaenzeAusRestDerMail(ergebnis, mailtext) {
+  const rest = leseZeilen(mailtext.replace(/---\s*RECHNER-DATEN[\s\S]*?---\s*ENDE\s*---/i, ''));
+  const erste = function (label) { return rest[label] ? rest[label][0] : ''; };
+
+  const referenz = erste('anfrage-nummer') || erste('anfragenummer');
+  if (referenz) {
+    ergebnis.felder.referenz = referenz;
+    ergebnis.notizen.push('Anfrage-Nummer ' + referenz);
+  }
+  const name = erste('name');
+  if (name) {
+    ergebnis.felder.kundenname = name;
+    ergebnis.notizen.push('Name: ' + name);
+  }
+  const telefon = erste('telefon') || erste('telefonnummer');
+  if (telefon) {
+    ergebnis.felder.telefon = telefon;
+    ergebnis.notizen.push('Telefon: ' + telefon);
+  }
+  const anhaenge = erste('anhänge');
+  if (anhaenge && Number(anhaenge) > 0) {
+    ergebnis.warnungen.push('Die Anfrage hat ' + anhaenge + ' Anhang/Anhänge (Fotos) – vor dem Angebot ansehen.');
+  }
+  return ergebnis;
+}
+
 /* -----------------------------------------------------------------------------
  * HAUPTFUNKTION
  * -----------------------------------------------------------------------------
@@ -455,23 +505,13 @@ function leseAnfrage(mailtext) {
    * nicht – für die gilt unverändert der Textweg darunter.
    */
   const strukturiert = leseRechnerDaten(mailtext);
-  if (strukturiert) return strukturiert;
+  if (strukturiert) return ergaenzeAusRestDerMail(strukturiert, mailtext);
 
   const felder = {};
   const notizen = [];
   const warnungen = [];
 
-  // Alle "Label: Wert"-Zeilen sammeln. Labels können doppelt vorkommen
-  // (die Mail hat zweimal "Größe:" — einmal die Einordnung "MITTEL",
-  // einmal "2 Zimmer"), deshalb wird pro Label eine Liste geführt.
-  const werte = {};
-  mailtext.split(/\r?\n/).forEach(function (zeile) {
-    const treffer = zeile.match(/^\s*([A-Za-zÄÖÜäöüß\- .]{2,30}?)\s*:\s*(.+?)\s*$/);
-    if (!treffer) return;
-    const label = treffer[1].toLowerCase().replace(/\s+/g, ' ').trim();
-    if (!werte[label]) werte[label] = [];
-    werte[label].push(treffer[2]);
-  });
+  const werte = leseZeilen(mailtext);
 
   function hole(label) {
     return werte[label] ? werte[label] : [];
@@ -666,6 +706,8 @@ function leseAnfrage(mailtext) {
       (etage.hinweis ? ' (' + etage.hinweis + ')' : ''));
     if (etage.warnung) warnungen.push(etage.warnung);
     if (etage.aufzug === true) felder.aufzug = true;
+  } else if (art === 'entruempelung') {
+    warnungen.push('Etage nicht erkannt – es gilt, was im Formular steht (Erdgeschoss). Bitte prüfen.');
   }
 
   // Steht "ohne Aufzug" in derselben Zeile, ist das eindeutig.
@@ -703,12 +745,12 @@ function leseAnfrage(mailtext) {
   /*
    * "Etwas anderes: <Text>" – der Freitext des Kunden. Er kann alles
    * enthalten, vom Öltank bis zum Taubenkot, und gehört deshalb ungekürzt
-   * vor die Augen, nicht in eine Schublade.
+   * vor die Augen, nicht in eine Schublade. Deshalb bis zum Zeilenende: Am
+   * Komma zu trennen schnitte "Öltank, rostig" mitten im Satz ab.
    */
-  besonderesText.split(/,|;/).forEach(function (teil) {
-    const t = teil.trim();
-    const m = t.match(/^etwas anderes\s*:\s*(.+)$/i);
-    if (m && m[1].trim()) warnungen.push('Eigene Angabe: ' + m[1].trim());
+  hole('besonderes').concat(hole('besondere gegenstände')).forEach(function (zeile) {
+    const m = zeile.match(/etwas anderes\s*:\s*(.+)$/i);
+    if (m) warnungen.push('Eigene Angabe: ' + m[1].trim());
   });
 
   /* --- Abfallarten ------------------------------------------------------- */
