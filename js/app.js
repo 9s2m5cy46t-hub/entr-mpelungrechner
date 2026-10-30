@@ -68,7 +68,7 @@
 
   // Kurzer Hinweis unter dem Dropdown, damit klar ist, wie gerechnet wird
   const ART_HINWEISE = {
-    entruempelung: 'Preis nach Wohnfläche und Vermüllungsgrad.',
+    entruempelung: 'Preis nach Volumen, wenn eines angegeben ist – sonst nach Wohnfläche und Vermüllungsgrad.',
     garten: 'Preis nach geschätzter Arbeitszeit, plus Grünschnitt.',
     abbruch: 'Preis nach geschätzter Arbeitszeit und Entsorgung.',
     bau: 'Preis nach geschätzter Arbeitszeit plus Material.',
@@ -116,7 +116,7 @@
     }
     artHinweis.textContent = ART_HINWEISE[artAuswahl.value] || '';
     volumenHinweis.textContent = modell === 'flaeche'
-      ? 'Leer lassen – wird aus der Wohnfläche geschätzt. Nur ausfüllen, wenn ihr es besser weißt (z. B. aus der Website-Anfrage).'
+      ? 'Bestimmt den Preis, wenn es ausgefüllt ist. Leer lassen – dann wird über die Wohnfläche gerechnet.'
       : 'Grob schätzen: ein voller Anhänger sind etwa 4 m³. Leer lassen, wenn nichts weggefahren werden muss.';
     // Fehlermeldungen ausgeblendeter Felder zurücksetzen
     ['wohnflaeche', 'zimmer', 'dauer'].forEach(function (name) {
@@ -165,6 +165,19 @@
     });
 
     if (schaetzung.ohneArbeiten) {
+      /*
+       * Ohne Zahlen kann auch nach dem Ankreuzen kein Vorschlag kommen – das
+       * darf der Kasten nicht versprechen, sondern muss sagen, was fehlt.
+       */
+      const fehlend = fehlendeGartenwerte();
+      if (fehlend.length) {
+        kastenFuellen('Kein Vorschlag möglich: Zeitwerte fehlen',
+          fehlend.concat([
+            'Fehlt in js/pricing.js unter PREISE.garten. Bis dahin die Dauer unten selbst schätzen – gerechnet wird trotzdem normal.',
+          ]),
+          'bericht-warnung');
+        return;
+      }
       kastenFuellen('Dauer wird vorgeschlagen',
         ['Kreuzt oben an, was gemacht werden soll – dann steht hier ein Vorschlag für die Dauer.'],
         'bericht-ok');
@@ -342,7 +355,8 @@
     aufschluesselungListe.append(
       zeile('Interner Richtwert', formatEuroCent(ergebnis.kalkulationspreis), true));
     aufschluesselungListe.append(
-      zeile('Kundenspanne (±20 %)',
+      zeile(ergebnis.spanneHerkunft === 'volumenspanne'
+        ? 'Kundenspanne (aus der Mengenspanne)' : 'Kundenspanne (±20 %)',
         formatZahl(ergebnis.spanneVon) + '–' + formatEuro(ergebnis.spanneBis), true));
   }
 
@@ -522,23 +536,31 @@
     const ergebnis = leseAnfrage(text);
     const f = ergebnis.felder;
 
+    /*
+     * Eine neue Anfrage beginnt mit einem leeren Formular. Sonst rechnet, was
+     * die neue Mail nicht nennt, still mit den Werten der vorigen weiter –
+     * etwa deren Volumen, das den Flächenweg aussticht.
+     */
+    formular.reset();
+
     referenz = f.referenz || '';
 
     if (f.auftragsart) {
       artAuswahl.value = f.auftragsart;
       artAuswahl.classList.add('uebernommen');
-      zeigePassendeFelder();
     }
+    zeigePassendeFelder();
     if (f.zone) {
       zoneAuswahl.value = f.zone;
       zoneAuswahl.classList.add('uebernommen');
-      zeigeKilometerfeld();
     }
+    zeigeKilometerfeld();
 
     setzeFeld('wohnflaeche', f.wohnflaeche);
     setzeFeld('zimmer', f.zimmer);
     setzeFeld('volumen', f.volumen);
     volumenSpanne = (f.volumenMin && f.volumenMax) ? { min: f.volumenMin, max: f.volumenMax } : null;
+    setzeFeld('personen', f.personen);
     setzeFeld('etage', f.etage);
     setzeFeld('beschreibung', f.beschreibung);
     setzeFeld('kundenname', f.kundenname);

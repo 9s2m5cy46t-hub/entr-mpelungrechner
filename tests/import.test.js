@@ -14,7 +14,7 @@ const G = ladeBrowserDateien(
   [
     "PREISE", "LABELS", "AUFTRAGSARTEN", "berechnePreis",
     "leseAnfrage", "leseRechnerDaten", "erkenneEtage", "erkenneLeute",
-    "erkenneVolumen", "zoneFuerOrt", "formatEuroCent",
+    "erkenneVolumen", "zoneFuerOrt", "formatEuroCent", "fehlendeGartenwerte",
   ],
 );
 
@@ -334,4 +334,45 @@ test("Ohne Volumen-Spanne gilt wieder ±20 %", () => {
   assert.equal(ohneSpanne.spanneHerkunft, "prozent");
   assert.equal(ohneSpanne.spanneVon, Math.round(ohneSpanne.kalkulationspreis * 0.8 / 10) * 10);
   assert.equal(ohneSpanne.spanneBis, Math.round(ohneSpanne.kalkulationspreis * 1.2 / 10) * 10);
+});
+
+/* =========================================================================
+ * Was still falsch gerechnet oder verschluckt wurde
+ * ====================================================================== */
+
+test("Die Einheit „m3“ wird nicht zur unteren Grenze", () => {
+  assert.deepEqual(rein(G.erkenneVolumen("etwa 22-42 m3")), { min: 22, max: 42, mitte: 32 });
+  assert.deepEqual(rein(G.erkenneVolumen("20 m3")), { min: 20, max: 20, mitte: 20 });
+});
+
+test("„Etwas anderes“ erscheint ungekürzt, auch mit Komma im Text", () => {
+  const { warnungen } = G.leseAnfrage(
+    "Bereich: Entrümpelung\nOrt: Melverode\nVolumen: 5 m³\n" +
+    "Besonderes: Große Elektrogeräte, Etwas anderes: Öltank, rostig, im Keller",
+  );
+  assert.ok(warnungen.includes("Eigene Angabe: Öltank, rostig, im Keller"), warnungen.join(" | "));
+});
+
+test("Unerkannte Etage wird gemeldet statt still Erdgeschoss", () => {
+  const ohne = fixture("3-haus-ohne-zimmer.txt").replace(/^Etage:.*$/m, "");
+  const { warnungen } = G.leseAnfrage(ohne);
+  assert.ok(warnungen.some((w) => w.includes("Etage nicht erkannt")), warnungen.join(" | "));
+});
+
+test("Bei Block-Mails bleiben Kontakt, Nummer und Anhänge erhalten, sonst nichts", () => {
+  const mail = fixture("6-rechner-daten.txt") + "\nAnhänge: 2\nEtage: Erdgeschoss\n";
+  const { felder, warnungen } = G.leseAnfrage(mail);
+  assert.equal(felder.referenz, "A-261027-TEST6");
+  assert.equal(felder.kundenname, "Beispielperson Sechs");
+  assert.equal(felder.telefon, "0531 666666");
+  assert.ok(warnungen.some((w) => w.includes("Anhang")));
+  assert.equal(felder.etage, "3", "die Etage bestimmt der Block, nicht der Fließtext");
+});
+
+test("Alle fehlenden Garten-Zeitwerte werden benannt", () => {
+  const zeilen = G.fehlendeGartenwerte();
+  assert.equal(zeilen.length, 3);
+  assert.ok(zeilen[0].includes("Rasen mähen oder kürzen"));
+  assert.ok(zeilen[1].includes("Klein"));
+  assert.ok(zeilen[2].includes("Gepflegt"));
 });

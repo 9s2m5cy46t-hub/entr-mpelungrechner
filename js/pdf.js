@@ -189,7 +189,8 @@ function erstellePDF(eingaben, ergebnis) {
 
   if (ergebnis.modell === 'flaeche') {
     // Entrümpelung
-    zeile('Wohnfläche', formatZahl(eingaben.wohnflaeche) + ' m²');
+    // Im Volumenweg kann die Fläche fehlen – "0 m²" gehört nicht ins PDF.
+    if (eingaben.wohnflaeche > 0) zeile('Wohnfläche', formatZahl(eingaben.wohnflaeche) + ' m²');
     if (eingaben.zimmer) zeile('Anzahl Zimmer', formatZahl(eingaben.zimmer));
     zeile('Vermüllungsgrad', LABELS.vermuellung[eingaben.vermuellungsgrad]);
     zeile('Kellerabteil zusätzlich', eingaben.kellerabteil ? 'Ja' : 'Nein');
